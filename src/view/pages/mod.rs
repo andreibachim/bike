@@ -1,5 +1,8 @@
 use gtk::prelude::{ButtonExt, CastNone, GtkWindowExt, StaticType, WidgetExt};
 
+use crate::singletons::BLUETOOTH;
+
+
 pub fn routes_page() -> adw::NavigationPage {
     let toolbar_view = adw::ToolbarView::builder().build();
     toolbar_view.add_top_bar(&header_bar());
@@ -22,6 +25,7 @@ fn devices() -> gtk::Button {
         .icon_name("bluetooth-disabled")
         .build();
     button.connect_clicked(|button| {
+        println!("{:?}", BLUETOOTH.get_state());
         let main_window: adw::ApplicationWindow = button
             .ancestor(gtk::Window::static_type())
             .and_downcast()

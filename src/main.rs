@@ -1,11 +1,14 @@
 mod view;
+mod singletons;
+
+use adw::Application;
 use gtk::gio::resources_register_include;
 use gtk::glib;
 use gtk::prelude::*;
-use adw::Application;
 use view::navigation_view;
-        
+
 const APP_ID: &str = "io.github.andreibachim.bike";
+
 fn main() -> glib::ExitCode {
     let app = Application::builder().application_id(APP_ID).build();
     app.connect_activate(build_ui);
@@ -13,8 +16,7 @@ fn main() -> glib::ExitCode {
 }
 
 fn build_ui(app: &Application) {
-    resources_register_include!("bike.gresource")
-        .expect("Could not load resources");
+    resources_register_include!("bike.gresource").expect("Could not load resources");
     let window = adw::ApplicationWindow::builder()
         .application(app)
         .default_width(600)
