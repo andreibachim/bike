@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.gnome.adw.*;
-import org.gnome.glib.GLib;
 import org.gnome.gtk.Button;
 import org.gnome.gtk.GtkBuilder;
 

@@ -15,7 +15,7 @@ import java.lang.foreign.MemorySegment;
 public class BtDeviceActionButton extends ActionRow {
 
     private String status = "Not set up";
-    private Bin statusContainer = new Bin();
+    private final Bin statusContainer = new Bin();
     private BtDevice device;
 
     public BtDeviceActionButton(MemorySegment address) {
