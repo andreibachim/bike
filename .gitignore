@@ -10,5 +10,5 @@ build
 bin
 
 # Compiled gresource
-src/main/resources/gresource.gresource
+src/main/resources/resources.gresource
 
