@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+    <template class="Window" parent="AdwApplicationWindow">
+        <property name="title">Bike</property>
+        <property name="default-width">1000</property>
+        <property name="default-height">700</property>
+        <child>
+            <object class="AdwToastOverlay">
+                <child>
+                    <object class="AdwToolbarView">
+                        <child type="top">
+                            <object class="AdwHeaderBar">
+                                <child type="start">
+                                    <object class="BtIndicator" id="bt-indicator">
+                                        <style>
+                                            <class name="flat"/>
+                                        </style>
+                                    </object>
+                                </child>
+                            </object>
+                        </child>
+                        <property name="content">
+                            <object class="GtkLabel">
+                                <property name="label">Hello, world</property>
+                            </object>
+                        </property>
+                    </object>
+                </child>
+            </object>
+        </child>
+    </template>
+</interface>

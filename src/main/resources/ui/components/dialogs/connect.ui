@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <object class="AdwDialog" id="connect">
+    <property name="content-width">500</property>
+    <property name="content-height">500</property>
+    <child>
+      <object class="AdwPreferencesPage">
+        <property name="margin-top">20</property>
+        <property name="margin-bottom">20</property>
+        <property name="margin-start">20</property>
+        <property name="margin-end">20</property>
+        <child>
+          <object class="AdwPreferencesGroup" id="list">
+            <property name="title">Devices</property>
+            <property name="description">Available devices</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

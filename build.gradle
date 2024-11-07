@@ -1,0 +1,47 @@
+plugins {
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("io.github.jwharm.javagi:gtk:0.11.0")
+    implementation("io.github.jwharm.javagi:adw:0.11.0")
+
+    implementation("com.github.hypfvieh:dbus-java-core:5.1.0")
+    implementation("com.github.hypfvieh:dbus-java-transport-native-unixsocket:5.1.0")
+    implementation("com.github.hypfvieh:bluez-dbus:0.3.0")
+
+    implementation 'org.slf4j:slf4j-api:2.0.16'
+    implementation 'org.slf4j:slf4j-simple:2.0.16'
+
+    compileOnly 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+
+    testImplementation libs.junit
+}
+
+// Apply a specific Java toolchain to ease working on different environments.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(22)
+    }
+}
+
+application {
+    mainClass = 'io.github.andreibachim.bike.Main'
+    applicationDefaultJvmArgs = ["--enable-native-access=ALL-UNNAMED"]
+}
+
+tasks.register('compileResources') {
+    exec {
+        workingDir 'src/main/resources'
+        commandLine 'glib-compile-resources', 'resources.xml'
+    }
+}
+
+tasks.named('compileJava') {
+    dependsOn compileResources
+}
