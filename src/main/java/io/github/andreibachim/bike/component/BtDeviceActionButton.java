@@ -1,25 +1,37 @@
 package io.github.andreibachim.bike.component;
 
-import io.github.andreibachim.bike.bluetooth.BtDevice;
-import io.github.jwharm.javagi.gobject.annotations.RegisteredType;
-import lombok.extern.slf4j.Slf4j;
+import java.lang.foreign.MemorySegment;
+import java.util.concurrent.Executors;
+
 import org.gnome.adw.ActionRow;
 import org.gnome.adw.Bin;
+import org.gnome.adw.Dialog;
 import org.gnome.adw.Spinner;
 import org.gnome.adw.Toast;
 import org.gnome.adw.ToastOverlay;
 import org.gnome.glib.GLib;
-import org.gnome.gtk.*;
+import org.gnome.gtk.Align;
+import org.gnome.gtk.Box;
+import org.gnome.gtk.GestureClick;
+import org.gnome.gtk.Label;
+import org.gnome.gtk.Orientation;
+import org.gnome.gtk.Widget;
 
-import java.lang.foreign.MemorySegment;
-import java.util.concurrent.Executors;
+import io.github.andreibachim.bike.bluetooth.BtDevice;
+import io.github.jwharm.javagi.gobject.annotations.RegisteredType;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RegisteredType(name = "BtDeviceActionButton")
 public class BtDeviceActionButton extends ActionRow {
 
-  private String status = "Not set up";
   private final Bin statusContainer = new Bin();
+  private final Label statusLabel = (Label) Label.builder()
+        .setLabel("Not set up")
+        .setCssClasses(new String[] { "dim-label" })
+        .setHexpand(false)
+        .setHalign(Align.END)
+        .build();  
   private BtDevice device;
 
   public BtDeviceActionButton(MemorySegment address) {
@@ -30,14 +42,15 @@ public class BtDeviceActionButton extends ActionRow {
     super();
     this.device = device;
     if (Boolean.TRUE.equals(device.isPaired())) {
-      status = "Disconnected";
+      statusLabel.setLabel("Disconnected");
     }
     if (Boolean.TRUE.equals(device.isConnected())) {
-      status = "Connected";
+      statusLabel.set("Connected");
     }
     setActivatable(true);
     onActivate(() -> {
       statusContainer.setChild(Spinner.builder().build());
+
       Executors.newSingleThreadExecutor().execute(() -> {
         if (Boolean.FALSE.equals(device.isTrusted())) {
           device.setTrusted(true);
@@ -47,12 +60,18 @@ public class BtDeviceActionButton extends ActionRow {
           if (device.pair())
             ;
           else {
-            ((ToastOverlay) getAncestor(ToastOverlay.getType())).addToast(Toast.builder().setTitle("Could not pair").build());
+            ((ToastOverlay) getAncestor(ToastOverlay.getType()))
+                .addToast(Toast.builder().setTitle("Could not pair").build());
           }
         }
-
         if (Boolean.FALSE.equals(device.isConnected())) {
-          device.connect();
+          if(device.connect()) {
+            GLib.idleAddOnce(() -> {
+              statusLabel.setLabel("Connected");
+              statusContainer.setChild(statusLabel);
+              ((Dialog) getAncestor(Dialog.getType())).close();
+            });
+          }
         }
       });
     });
@@ -67,11 +86,6 @@ public class BtDeviceActionButton extends ActionRow {
         .setHexpand(true)
         .build();
     Label title = (Label) Label.builder().setLabel(device.getName()).setHexpand(true).setHalign(Align.START).build();
-    Label statusLabel = (Label) Label.builder()
-        .setLabel(status)
-        .setCssClasses(new String[] { "dim-label" })
-        .setHexpand(false)
-        .setHalign(Align.END).build();
     container.append(title);
     statusContainer.setChild(statusLabel);
     container.append(statusContainer);
