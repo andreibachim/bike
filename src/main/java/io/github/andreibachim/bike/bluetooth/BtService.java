@@ -1,14 +1,12 @@
 package io.github.andreibachim.bike.bluetooth;
 
-import com.github.hypfvieh.DbusHelper;
-import com.github.hypfvieh.bluetooth.DeviceManager;
-import com.github.hypfvieh.bluetooth.DiscoveryFilter;
-import com.github.hypfvieh.bluetooth.DiscoveryTransport;
-import com.github.hypfvieh.bluetooth.wrapper.AgentManager;
-import com.github.hypfvieh.bluetooth.wrapper.BluetoothAdapter;
-import io.github.andreibachim.bike.constant.UUIDs;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import org.bluez.Device1;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.freedesktop.dbus.handlers.AbstractInterfacesAddedHandler;
@@ -19,11 +17,18 @@ import org.freedesktop.dbus.interfaces.Properties;
 import org.freedesktop.dbus.interfaces.Properties.PropertiesChanged;
 import org.freedesktop.dbus.types.Variant;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Stream;
+import com.github.hypfvieh.DbusHelper;
+import com.github.hypfvieh.bluetooth.DeviceManager;
+import com.github.hypfvieh.bluetooth.DiscoveryFilter;
+import com.github.hypfvieh.bluetooth.DiscoveryTransport;
+import com.github.hypfvieh.bluetooth.wrapper.AgentManager;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothAdapter;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
+
+import io.github.andreibachim.bike.constant.UUIDs;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BtService {
@@ -32,6 +37,10 @@ public class BtService {
 
   @Getter
   private static final Optional<BtService> instance = BtService.create();
+
+  @Getter
+  @Setter
+  private Optional<BtDevice> device = Optional.empty();
 
   private DeviceManager deviceManager;
   private BluetoothAdapter adapter;
@@ -47,11 +56,16 @@ public class BtService {
         log.error("No adapter found");
         return Optional.empty();
       }
+
+      // Set the bt device
+      btService.setDevice(btService.getKnownFitnessMachines().filter(BtDevice::isConnected).findFirst());
+
       Map<DiscoveryFilter, Object> filters = new LinkedHashMap<>();
       filters.put(DiscoveryFilter.Transport, DiscoveryTransport.LE);
       String[] relevantServices = new String[] { UUIDs.FITNESS_MACHINE_SERVICE };
       filters.put(DiscoveryFilter.UUIDs, relevantServices);
       btService.deviceManager.setScanFilter(filters);
+
     } catch (DBusException e) {
       log.error("Could not create bluetooth device manager", e);
       return Optional.empty();
@@ -127,10 +141,12 @@ public class BtService {
         if (Objects.nonNull(connectedVariant)) {
           boolean connected = (boolean) connectedVariant.getValue();
           BtDevice device = signalToDevice(signal.getPath());
-          if (connected)
+          if (connected) {
             listener.deviceConnected(device);
-          else
+            setDevice(Optional.of(device));
+          } else {
             listener.deviceDisconnected(device);
+          }
         }
       }
     });
@@ -145,5 +161,13 @@ public class BtService {
   private BtDevice signalToDevice(String path) {
     Device1 rawDevice = DbusHelper.getRemoteObject(deviceManager.getDbusConnection(), path, Device1.class);
     return new BtDevice(rawDevice, adapter, path, deviceManager.getDbusConnection());
+  }
+
+  private Stream<BtDevice> getKnownFitnessMachines() {
+    return deviceManager.getDevices(true)
+        .stream()
+        .filter(device -> device.getGattServices().stream().map(BluetoothGattService::getUuid).toList()
+            .containsAll(Arrays.asList("00001826-0000-1000-8000-00805f9b34fb", "00001818-0000-1000-8000-00805f9b34fb")))
+        .map(BtDevice::new);
   }
 }

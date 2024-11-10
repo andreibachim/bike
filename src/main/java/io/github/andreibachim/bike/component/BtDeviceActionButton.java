@@ -45,7 +45,7 @@ public class BtDeviceActionButton extends ActionRow {
       statusLabel.setLabel("Disconnected");
     }
     if (Boolean.TRUE.equals(device.isConnected())) {
-      statusLabel.set("Connected");
+      statusLabel.setLabel("Connected");
     }
     setActivatable(true);
     onActivate(() -> {

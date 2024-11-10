@@ -2,6 +2,7 @@ package io.github.andreibachim.bike.component;
 
 import io.github.andreibachim.bike.bluetooth.BtDevice;
 import io.github.andreibachim.bike.bluetooth.BtService;
+import io.github.andreibachim.bike.constant.UUIDs;
 import io.github.jwharm.javagi.gobject.annotations.InstanceInit;
 import io.github.jwharm.javagi.gobject.annotations.RegisteredType;
 import lombok.Getter;
@@ -35,7 +36,13 @@ public class BtIndicator extends Button {
       if (btService.isAdapterOn())
         setStatus(DISCONNECTED);
       else
-        setStatus(DISABLED);
+      setStatus(DISABLED);
+
+      btService.getDevice().ifPresent(device -> {
+        setStatus(ACTIVE);
+      });
+
+
       btService.registerAdapterStateListener(new BtService.AdapterStateListener() {
         @Override
         public void powerOn() {
@@ -52,12 +59,19 @@ public class BtIndicator extends Button {
           @Override
           public void deviceConnected(BtDevice device) {
             setStatus(Status.ACTIVE);
-            device.getGattServices().forEach(gattService -> {
-              log.info("Service {} found with following characteristics:", gattService.getUuid());
-              gattService.getGattCharacteristics().forEach(characteristic -> {
-                log.info(characteristic.getUuid());
-              });
-            });
+            device.getGattServices()
+                .stream()
+                .filter(gattService -> gattService.getUuid().equalsIgnoreCase(UUIDs.FITNESS_MACHINE_SERVICE))
+                .forEach(ftms -> ftms.getGattCharacteristics()
+                    .forEach(characteristic -> {
+                      if (characteristic.getUuid().equalsIgnoreCase("00002acc-0000-1000-8000-00805f9b34fb")) {
+                        for (byte i : characteristic.getValue()) {
+                          log.info("Hello");
+                          System.out.println(i);
+                          log.info("World");
+                        }
+                      }
+                    }));
           }
 
           @Override
