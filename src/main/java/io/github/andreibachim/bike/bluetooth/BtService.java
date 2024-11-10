@@ -62,7 +62,7 @@ public class BtService {
 
       Map<DiscoveryFilter, Object> filters = new LinkedHashMap<>();
       filters.put(DiscoveryFilter.Transport, DiscoveryTransport.LE);
-      String[] relevantServices = new String[] { UUIDs.FITNESS_MACHINE_SERVICE };
+      String[] relevantServices = new String[] { UUIDs.FITNESS_MACHINE_SERVICE, UUIDs.CYCLING_POWER_SERVICE };
       filters.put(DiscoveryFilter.UUIDs, relevantServices);
       btService.deviceManager.setScanFilter(filters);
 
@@ -78,6 +78,14 @@ public class BtService {
 
   public boolean isAdapterOn() {
     return adapter.isPowered();
+  }
+
+  public boolean startDiscovery() {
+    return adapter.startDiscovery();
+  }
+
+  public boolean stopDiscovery() {
+    return adapter.stopDiscovery();
   }
 
   public void registerAdapterStateListener(AdapterStateListener listener) {
@@ -117,6 +125,7 @@ public class BtService {
     deviceManager.registerSignalHandler(new AbstractInterfacesAddedHandler() {
       @Override
       public void handle(ObjectManager.InterfacesAdded signal) {
+        log.info(signal.toString());
         listener.deviceFound(signalToDevice(signal.getSignalSource().toString()));
       }
     });
@@ -167,7 +176,7 @@ public class BtService {
     return deviceManager.getDevices(true)
         .stream()
         .filter(device -> device.getGattServices().stream().map(BluetoothGattService::getUuid).toList()
-            .containsAll(Arrays.asList("00001826-0000-1000-8000-00805f9b34fb", "00001818-0000-1000-8000-00805f9b34fb")))
+            .containsAll(Arrays.asList(UUIDs.FITNESS_MACHINE_SERVICE, UUIDs.CYCLING_POWER_SERVICE)))
         .map(BtDevice::new);
   }
 }

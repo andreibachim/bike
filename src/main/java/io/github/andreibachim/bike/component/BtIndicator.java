@@ -8,11 +8,22 @@ import io.github.jwharm.javagi.gobject.annotations.RegisteredType;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.bluez.exceptions.BluezFailedException;
+import org.bluez.exceptions.BluezInProgressException;
+import org.bluez.exceptions.BluezInvalidOffsetException;
+import org.bluez.exceptions.BluezInvalidValueLengthException;
+import org.bluez.exceptions.BluezNotAuthorizedException;
+import org.bluez.exceptions.BluezNotPermittedException;
+import org.bluez.exceptions.BluezNotSupportedException;
 import org.gnome.adw.*;
 import org.gnome.gtk.Button;
 import org.gnome.gtk.GtkBuilder;
 
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
+
 import java.lang.foreign.MemorySegment;
+import java.util.HashMap;
 
 import static io.github.andreibachim.bike.component.BtIndicator.Status.*;
 
@@ -36,12 +47,20 @@ public class BtIndicator extends Button {
       if (btService.isAdapterOn())
         setStatus(DISCONNECTED);
       else
-      setStatus(DISABLED);
+        setStatus(DISABLED);
 
-      btService.getDevice().ifPresent(device -> {
+      btService.getDevice().ifPresent(d -> {
+        BluetoothGattService gattService = d.getGattServiceByUuid(UUIDs.FITNESS_MACHINE_SERVICE);
+        gattService.refreshGattCharacteristics();
+        for (var characteristi : gattService.getGattCharacteristics()) {
+          log.info(characteristi.getUuid());
+          characteristi.refreshGattDescriptors();
+          for (byte b : characteristi.getValue()) {
+            System.out.println(b & 0xFF);
+          }
+        }
         setStatus(ACTIVE);
       });
-
 
       btService.registerAdapterStateListener(new BtService.AdapterStateListener() {
         @Override
@@ -109,6 +128,10 @@ public class BtIndicator extends Button {
         .fromResource("/io/github/andreibachim/bike/ui/components/dialogs/connect.ui");
     final Dialog dialog = (Dialog) builder.getObject("connect");
     dialog.present(getAncestor(ApplicationWindow.getType()));
+    dialog.onClosed(() -> {
+      log.info("Closing discovery");
+      service.stopDiscovery();
+    });
     PreferencesGroup list = ((PreferencesGroup) builder.getObject("list"));
     try {
       service.registerDeviceAvailabilityListener(new BtService.DeviceAvailabilityListener() {
@@ -128,6 +151,7 @@ public class BtIndicator extends Button {
       ToastOverlay toastOverlay = (ToastOverlay) getAncestor(ToastOverlay.getType());
       toastOverlay.addToast(new Toast("Could not search for new devices"));
     }
+    service.startDiscovery();
   }
 
   @Getter
