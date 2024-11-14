@@ -5,6 +5,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.bluez.Device1;
@@ -39,7 +41,6 @@ public class BtService {
   private static final Optional<BtService> instance = BtService.create();
 
   @Getter
-  @Setter
   private Optional<BtDevice> device = Optional.empty();
 
   private DeviceManager deviceManager;
@@ -165,6 +166,26 @@ public class BtService {
     void deviceConnected(BtDevice device);
 
     void deviceDisconnected(BtDevice device);
+  }
+
+  public void setDevice(Optional<BtDevice> device) {
+    this.device = device;
+    device.ifPresent(d -> {
+
+      // log.info("Is device paired? {}", d.isPaired());
+      // log.info("Is device trusted? {}", d.isTrusted());
+      // log.info("Is device blocked? {}", d.isBlocked());
+      // log.info("Is device connected? {}", d.isConnected());
+      // log.info("Are services discovered? {}", d.isServicesResolved());
+      //
+      // d.refreshGattServices();
+      BluetoothGattService gattService = d.getGattServiceByUuid(UUIDs.FITNESS_MACHINE_SERVICE);
+      gattService.refreshGattCharacteristics();
+      for (var characteristic : gattService.getGattCharacteristics()) {
+        log.info("Printing values of characteristic {}", characteristic.getUuid());
+        log.info("{}", characteristic.getValue().length);
+      }
+    });
   }
 
   private BtDevice signalToDevice(String path) {

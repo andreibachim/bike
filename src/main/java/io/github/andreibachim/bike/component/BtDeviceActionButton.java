@@ -18,6 +18,7 @@ import org.gnome.gtk.Orientation;
 import org.gnome.gtk.Widget;
 
 import io.github.andreibachim.bike.bluetooth.BtDevice;
+import io.github.andreibachim.bike.constant.UUIDs;
 import io.github.jwharm.javagi.gobject.annotations.RegisteredType;
 import lombok.extern.slf4j.Slf4j;
 
@@ -65,6 +66,7 @@ public class BtDeviceActionButton extends ActionRow {
           }
         }
         if (Boolean.FALSE.equals(device.isConnected())) {
+          //log.info("\n\n\n{}\n\n\n", device.connectProfile(UUIDs.FITNESS_MACHINE_SERVICE));
           if(device.connect()) {
             GLib.idleAddOnce(() -> {
               statusLabel.setLabel("Connected");

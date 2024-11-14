@@ -1,31 +1,28 @@
 package io.github.andreibachim.bike.component;
 
+import static io.github.andreibachim.bike.component.BtIndicator.Status.ACTIVE;
+import static io.github.andreibachim.bike.component.BtIndicator.Status.DISABLED;
+import static io.github.andreibachim.bike.component.BtIndicator.Status.DISCONNECTED;
+import static io.github.andreibachim.bike.component.BtIndicator.Status.NO_HARDWARE;
+
+import java.lang.foreign.MemorySegment;
+
+import org.gnome.adw.AlertDialog;
+import org.gnome.adw.ApplicationWindow;
+import org.gnome.adw.Dialog;
+import org.gnome.adw.PreferencesGroup;
+import org.gnome.adw.Toast;
+import org.gnome.adw.ToastOverlay;
+import org.gnome.gtk.Button;
+import org.gnome.gtk.GtkBuilder;
+
 import io.github.andreibachim.bike.bluetooth.BtDevice;
 import io.github.andreibachim.bike.bluetooth.BtService;
-import io.github.andreibachim.bike.constant.UUIDs;
 import io.github.jwharm.javagi.gobject.annotations.InstanceInit;
 import io.github.jwharm.javagi.gobject.annotations.RegisteredType;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.bluez.exceptions.BluezFailedException;
-import org.bluez.exceptions.BluezInProgressException;
-import org.bluez.exceptions.BluezInvalidOffsetException;
-import org.bluez.exceptions.BluezInvalidValueLengthException;
-import org.bluez.exceptions.BluezNotAuthorizedException;
-import org.bluez.exceptions.BluezNotPermittedException;
-import org.bluez.exceptions.BluezNotSupportedException;
-import org.gnome.adw.*;
-import org.gnome.gtk.Button;
-import org.gnome.gtk.GtkBuilder;
-
-import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
-
-import java.lang.foreign.MemorySegment;
-import java.util.HashMap;
-
-import static io.github.andreibachim.bike.component.BtIndicator.Status.*;
 
 @Slf4j
 @RegisteredType(name = "BtIndicator")
@@ -48,17 +45,7 @@ public class BtIndicator extends Button {
         setStatus(DISCONNECTED);
       else
         setStatus(DISABLED);
-
-      btService.getDevice().ifPresent(d -> {
-        BluetoothGattService gattService = d.getGattServiceByUuid(UUIDs.FITNESS_MACHINE_SERVICE);
-        gattService.refreshGattCharacteristics();
-        for (var characteristi : gattService.getGattCharacteristics()) {
-          log.info(characteristi.getUuid());
-          characteristi.refreshGattDescriptors();
-          for (byte b : characteristi.getValue()) {
-            System.out.println(b & 0xFF);
-          }
-        }
+      btService.getDevice().ifPresent(_ -> {
         setStatus(ACTIVE);
       });
 
@@ -78,19 +65,6 @@ public class BtIndicator extends Button {
           @Override
           public void deviceConnected(BtDevice device) {
             setStatus(Status.ACTIVE);
-            device.getGattServices()
-                .stream()
-                .filter(gattService -> gattService.getUuid().equalsIgnoreCase(UUIDs.FITNESS_MACHINE_SERVICE))
-                .forEach(ftms -> ftms.getGattCharacteristics()
-                    .forEach(characteristic -> {
-                      if (characteristic.getUuid().equalsIgnoreCase("00002acc-0000-1000-8000-00805f9b34fb")) {
-                        for (byte i : characteristic.getValue()) {
-                          log.info("Hello");
-                          System.out.println(i);
-                          log.info("World");
-                        }
-                      }
-                    }));
           }
 
           @Override
@@ -129,7 +103,6 @@ public class BtIndicator extends Button {
     final Dialog dialog = (Dialog) builder.getObject("connect");
     dialog.present(getAncestor(ApplicationWindow.getType()));
     dialog.onClosed(() -> {
-      log.info("Closing discovery");
       service.stopDiscovery();
     });
     PreferencesGroup list = ((PreferencesGroup) builder.getObject("list"));
