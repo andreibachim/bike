@@ -1,6 +1,7 @@
 package io.github.andreibachim.bike.bluetooth;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -10,7 +11,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.bluez.Device1;
+import org.bluez.exceptions.BluezFailedException;
+import org.bluez.exceptions.BluezInProgressException;
+import org.bluez.exceptions.BluezInvalidOffsetException;
+import org.bluez.exceptions.BluezNotAuthorizedException;
+import org.bluez.exceptions.BluezNotPermittedException;
+import org.bluez.exceptions.BluezNotSupportedException;
 import org.freedesktop.dbus.exceptions.DBusException;
+import org.freedesktop.dbus.exceptions.DBusExecutionException;
 import org.freedesktop.dbus.handlers.AbstractInterfacesAddedHandler;
 import org.freedesktop.dbus.handlers.AbstractInterfacesRemovedHandler;
 import org.freedesktop.dbus.handlers.AbstractPropertiesChangedHandler;
@@ -25,11 +33,13 @@ import com.github.hypfvieh.bluetooth.DiscoveryFilter;
 import com.github.hypfvieh.bluetooth.DiscoveryTransport;
 import com.github.hypfvieh.bluetooth.wrapper.AgentManager;
 import com.github.hypfvieh.bluetooth.wrapper.BluetoothAdapter;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
 import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
 
 import io.github.andreibachim.bike.constant.UUIDs;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.val;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -126,7 +136,6 @@ public class BtService {
     deviceManager.registerSignalHandler(new AbstractInterfacesAddedHandler() {
       @Override
       public void handle(ObjectManager.InterfacesAdded signal) {
-        log.info(signal.toString());
         listener.deviceFound(signalToDevice(signal.getSignalSource().toString()));
       }
     });
@@ -171,19 +180,18 @@ public class BtService {
   public void setDevice(Optional<BtDevice> device) {
     this.device = device;
     device.ifPresent(d -> {
-
-      // log.info("Is device paired? {}", d.isPaired());
-      // log.info("Is device trusted? {}", d.isTrusted());
-      // log.info("Is device blocked? {}", d.isBlocked());
-      // log.info("Is device connected? {}", d.isConnected());
-      // log.info("Are services discovered? {}", d.isServicesResolved());
-      //
-      // d.refreshGattServices();
       BluetoothGattService gattService = d.getGattServiceByUuid(UUIDs.FITNESS_MACHINE_SERVICE);
-      gattService.refreshGattCharacteristics();
-      for (var characteristic : gattService.getGattCharacteristics()) {
-        log.info("Printing values of characteristic {}", characteristic.getUuid());
-        log.info("{}", characteristic.getValue().length);
+      log.info("Are services resolved? {}", d.isServicesResolved());
+      BluetoothGattCharacteristic ftms = gattService
+          .getGattCharacteristicByUuid("00002acc-0000-1000-8000-00805f9b34fb");
+      try {
+        byte[] value = ftms.readValue(Map.of());
+        for (byte b : value) {
+          String binaryString = String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0');
+          System.out.print(binaryString);
+        } 
+      } catch (DBusException | DBusExecutionException e) {
+        e.printStackTrace();
       }
     });
   }
