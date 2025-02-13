@@ -1,5 +1,8 @@
 use bike_bt::BluetoothStatus;
-use relm4::{gtk::prelude::ButtonExt, ComponentParts, MessageBroker, SimpleComponent};
+use relm4::{
+    gtk::{glib::clone, prelude::ButtonExt},
+    ComponentParts, MessageBroker, SimpleComponent,
+};
 
 pub static BLUETOOTH_STATUS_BROKER: MessageBroker<BluetoothButtonInput> = MessageBroker::new();
 
@@ -10,6 +13,7 @@ pub struct BluetoothButton {
 #[derive(Debug)]
 pub enum BluetoothButtonInput {
     SetStatus(BluetoothStatus),
+    HandleClick,
 }
 
 pub struct BluetoothStatusWidgets {
@@ -32,9 +36,15 @@ impl SimpleComponent for BluetoothButton {
     fn init(
         status: Self::Init,
         root: Self::Root,
-        _sender: relm4::ComponentSender<Self>,
+        sender: relm4::ComponentSender<Self>,
     ) -> relm4::ComponentParts<Self> {
         let model = BluetoothButton { status };
+
+        root.connect_clicked(clone!(
+            #[strong]
+            sender,
+            move |_| sender.input(BluetoothButtonInput::HandleClick)
+        ));
 
         let widgets = BluetoothStatusWidgets { button: root };
         ComponentParts { model, widgets }
@@ -43,6 +53,9 @@ impl SimpleComponent for BluetoothButton {
     fn update(&mut self, message: Self::Input, _sender: relm4::ComponentSender<Self>) {
         match message {
             BluetoothButtonInput::SetStatus(bluetooth_status) => self.status = bluetooth_status,
+            BluetoothButtonInput::HandleClick => {
+                println!("{:#?}", self.status);
+            }
         }
     }
 

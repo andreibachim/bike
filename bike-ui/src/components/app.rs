@@ -2,7 +2,8 @@ use bike_bt::{BikeBt, BluetoothStatus};
 use relm4::{
     adw::prelude::AdwApplicationWindowExt,
     prelude::{
-        AsyncComponent, AsyncComponentController, AsyncComponentParts, SimpleAsyncComponent,
+        AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController,
+        SimpleAsyncComponent,
     },
 };
 
@@ -10,7 +11,9 @@ use crate::components::bluetooth_button::BLUETOOTH_STATUS_BROKER;
 
 use super::{bluetooth_button::BluetoothButtonInput, Header};
 
-pub struct App;
+pub struct App {
+    header: AsyncController<Header>,
+}
 
 impl SimpleAsyncComponent for App {
     type Input = ();
@@ -56,7 +59,7 @@ impl SimpleAsyncComponent for App {
         root.set_content(Some(&toolbar_view));
 
         AsyncComponentParts {
-            model: App {},
+            model: App { header },
             widgets: (),
         }
     }
