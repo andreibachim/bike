@@ -1,0 +1,9 @@
+[package]
+name = "bike-bt"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bluer = { version = "0.17.3", features = [ "bluetoothd" ] }
+futures = { version = "0.3.31" }
+tokio = { version = "1.43.0", features = [ "rt-multi-thread" ] } 
