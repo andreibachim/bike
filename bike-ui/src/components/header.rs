@@ -4,7 +4,7 @@ use relm4::{
     Component, ComponentController, Controller,
 };
 
-use super::{bluetooth_button::BLUETOOTH_STATUS_BROKER, BluetoothButton};
+use super::{bluetooth_button::BluetoothButton, bluetooth_button::BLUETOOTH_STATUS_BROKER};
 
 pub struct Header {
     bluetooth_button: Controller<BluetoothButton>,
@@ -24,15 +24,12 @@ impl SimpleAsyncComponent for Header {
     async fn init(
         _init: Self::Init,
         root: Self::Root,
-        sender: relm4::AsyncComponentSender<Self>,
+        _sender: relm4::AsyncComponentSender<Self>,
     ) -> relm4::prelude::AsyncComponentParts<Self> {
         let bluetooth_button = BluetoothButton::builder()
             .launch_with_broker(BluetoothStatus::Unavailable, &BLUETOOTH_STATUS_BROKER)
-            .forward(sender.input_sender(), |_| {});
-        //.detach();
-
+            .detach();
         root.pack_start(bluetooth_button.widget());
-
         let model = Header { bluetooth_button };
         AsyncComponentParts { model, widgets: () }
     }
