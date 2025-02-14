@@ -1,6 +1,7 @@
 use crate::components::App;
 use relm4::RelmApp;
 mod components;
+mod app_data;
 
 const APPLICATION_ID: &str = "io.github.andreibachim.bike";
 

@@ -8,6 +8,7 @@ pub use bluetooth_error::BluetoothError;
 pub use bluetooth_status::BluetoothStatus;
 pub use device::Device;
 pub use device::DeviceDiscoveryEvent;
+pub use device::DeviceSignalStrength;
 
 #[cfg(test)]
 mod tests {

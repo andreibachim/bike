@@ -1,13 +1,31 @@
-use relm4::{ComponentParts, SimpleComponent};
+use bike_bt::Device;
+use relm4::{
+    adw::{
+        prelude::{AdwDialogExt, PreferencesPageExt},
+        PreferencesGroup, PreferencesPage,
+    },
+    prelude::{AsyncComponentParts, AsyncFactoryVecDeque, SimpleAsyncComponent},
+};
+
+
+use super::DeviceListing;
 
 pub struct ConnectDialog {
-    pub owner: relm4::gtk::Button,
+    #[allow(dead_code)]
+    devices: AsyncFactoryVecDeque<DeviceListing>,
 }
 
-impl SimpleComponent for ConnectDialog {
-    type Input = ();
+#[derive(Debug)]
+pub enum ConnectDialogInput {
+    StartScanning,
+    DeviceAdded(Device),
+    DeviceRemoved(Device),
+}
+
+impl SimpleAsyncComponent for ConnectDialog {
+    type Input = ConnectDialogInput;
     type Output = ();
-    type Init = relm4::gtk::Button;
+    type Init = ();
     type Root = relm4::adw::Dialog;
     type Widgets = ();
 
@@ -20,14 +38,41 @@ impl SimpleComponent for ConnectDialog {
             .build()
     }
 
-    fn init(
-        owner: Self::Init,
-        _root: Self::Root,
-        _sender: relm4::ComponentSender<Self>,
-    ) -> relm4::ComponentParts<Self> {
-        ComponentParts {
-            model: ConnectDialog { owner },
+    async fn init(
+        _init: Self::Init,
+        root: Self::Root,
+        _sender: relm4::AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self> {
+        let preference_page = PreferencesPage::builder()
+            .margin_end(20)
+            .margin_start(20)
+            .margin_bottom(20)
+            .margin_top(20)
+            .build();
+
+        let preference_group = PreferencesGroup::builder()
+            .title("Devices")
+            .description("Available devices")
+            .build();
+        preference_page.add(&preference_group);
+
+        let devices: AsyncFactoryVecDeque<DeviceListing> = AsyncFactoryVecDeque::builder()
+            .launch(preference_group)
+            .detach();
+
+        root.set_child(Some(&preference_page));
+
+        AsyncComponentParts {
+            model: ConnectDialog { devices },
             widgets: (),
         }
+    }
+
+    async fn update(&mut self, message: Self::Input, _sender: relm4::AsyncComponentSender<Self>) {
+        match message {
+            ConnectDialogInput::StartScanning => {}
+            ConnectDialogInput::DeviceAdded(_device) => todo!(),
+            ConnectDialogInput::DeviceRemoved(_device) => todo!(),
+        };
     }
 }

@@ -1,6 +1,4 @@
-use std::rc::Rc;
-
-use bike_bt::{BikeBt, BluetoothStatus};
+use bike_bt::BluetoothStatus;
 use futures::StreamExt;
 use relm4::{
     adw::prelude::AdwDialogExt,
@@ -8,22 +6,26 @@ use relm4::{
         glib::{clone, MainContext},
         prelude::{ButtonExt, WidgetExt},
     },
-    prelude::{AsyncComponentParts, SimpleAsyncComponent},
-    Component, ComponentController, Controller, RelmWidgetExt,
+    prelude::{
+        AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController,
+        SimpleAsyncComponent,
+    },
+    RelmWidgetExt,
 };
 
-use super::ConnectDialog;
+use crate::components::app::APP_DATA;
+
+use super::{connect_window::ConnectDialogInput, ConnectDialog};
 
 pub struct BluetoothButton {
     status: BluetoothStatus,
-    bike_bt: Rc<Option<BikeBt>>,
-    connect_dialog: Controller<ConnectDialog>,
+    connect_dialog: AsyncController<ConnectDialog>,
 }
 
 #[derive(Debug)]
 pub enum BluetoothButtonInput {
     SetStatus(BluetoothStatus),
-    Clicked,
+    Clicked(relm4::gtk::Button),
 }
 
 pub struct BluetoothStatusWidgets {
@@ -33,7 +35,7 @@ pub struct BluetoothStatusWidgets {
 impl SimpleAsyncComponent for BluetoothButton {
     type Input = BluetoothButtonInput;
     type Output = ();
-    type Init = Rc<Option<BikeBt>>;
+    type Init = ();
     type Root = relm4::gtk::Button;
     type Widgets = BluetoothStatusWidgets;
 
@@ -45,11 +47,11 @@ impl SimpleAsyncComponent for BluetoothButton {
     }
 
     async fn init(
-        bike_bt: Self::Init,
+        _: Self::Init,
         root: Self::Root,
         sender: relm4::AsyncComponentSender<Self>,
     ) -> relm4::prelude::AsyncComponentParts<Self> {
-        if let Some(bike_bt) = bike_bt.as_ref() {
+        if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
             sender.input(BluetoothButtonInput::SetStatus(bike_bt.get_status().await));
             if let Ok(event_stream) = bike_bt.register_adapter_listener().await {
                 let sender = sender.clone();
@@ -62,12 +64,13 @@ impl SimpleAsyncComponent for BluetoothButton {
             }
         };
 
-        let connect_dialog = ConnectDialog::builder().launch(root.clone()).detach();
+        let connect_dialog = ConnectDialog::builder().launch(()).detach();
 
-        root.connect_clicked(clone!(move |_| sender.input(BluetoothButtonInput::Clicked)));
+        root.connect_clicked(clone!(
+            move |btn| sender.input(BluetoothButtonInput::Clicked(btn.clone()))
+        ));
         let model = BluetoothButton {
             status: BluetoothStatus::Connected,
-            bike_bt,
             connect_dialog,
         };
 
@@ -78,11 +81,18 @@ impl SimpleAsyncComponent for BluetoothButton {
     async fn update(&mut self, message: Self::Input, _sender: relm4::AsyncComponentSender<Self>) {
         match message {
             BluetoothButtonInput::SetStatus(bluetooth_status) => self.status = bluetooth_status,
-            BluetoothButtonInput::Clicked => match self.status {
+            BluetoothButtonInput::Clicked(owner) => match self.status {
                 BluetoothStatus::Disconnected => {
-                    let widget = self.connect_dialog.widget();
-                    let window = self.connect_dialog.model().owner.toplevel_window();
-                    widget.present(window.as_ref());
+                    if self
+                        .connect_dialog
+                        .sender()
+                        .send(ConnectDialogInput::StartScanning)
+                        .is_ok()
+                    {
+                        let widget = self.connect_dialog.widget();
+                        let window = owner.toplevel_window();
+                        widget.present(window.as_ref());
+                    }
                 }
                 _ => {
                     println!("{:#?}", self.status);

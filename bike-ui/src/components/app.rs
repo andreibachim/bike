@@ -1,19 +1,22 @@
-use std::rc::Rc;
-
 use bike_bt::BikeBt;
 use relm4::{
-    adw::prelude::AdwApplicationWindowExt,
+    adw::{prelude::AdwApplicationWindowExt, HeaderBar},
     prelude::{
         AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController,
         SimpleAsyncComponent,
     },
+    SharedState,
 };
 
-use super::Header;
+use crate::app_data::AppData;
+
+use super::bluetooth_button::BluetoothButton;
+
+pub static APP_DATA: SharedState<AppData> = SharedState::new();
 
 pub struct App {
-    header: AsyncController<Header>,
-    bike_bt: Rc<Option<BikeBt>>,
+    #[allow(dead_code)]
+    bluetooth_button: AsyncController<BluetoothButton>,
 }
 
 impl SimpleAsyncComponent for App {
@@ -44,18 +47,20 @@ impl SimpleAsyncComponent for App {
             }
         };
 
-        let bike_bt = Rc::new(bike_bt);
+        APP_DATA.write_inner().bike_bt = bike_bt;
 
         //Create the header
-        let header = Header::builder().launch(bike_bt.clone()).detach();
+        let header_bar = HeaderBar::new();
+        let bluetooth_button = BluetoothButton::builder().launch(()).detach();
+        header_bar.pack_end(bluetooth_button.widget());
 
         //Setup the toolbar view
         let toolbar_view = relm4::adw::ToolbarView::new();
-        toolbar_view.add_top_bar(header.widget());
+        toolbar_view.add_top_bar(&header_bar);
         root.set_content(Some(&toolbar_view));
 
         AsyncComponentParts {
-            model: App { header, bike_bt },
+            model: App { bluetooth_button },
             widgets: (),
         }
     }
