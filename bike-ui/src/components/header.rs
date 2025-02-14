@@ -1,19 +1,21 @@
-use bike_bt::BluetoothStatus;
-use relm4::{
-    prelude::{AsyncComponentParts, SimpleAsyncComponent},
-    Component, ComponentController, Controller,
+use std::rc::Rc;
+
+use bike_bt::BikeBt;
+use relm4::prelude::{
+    AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController,
+    SimpleAsyncComponent,
 };
 
-use super::{bluetooth_button::BluetoothButton, bluetooth_button::BLUETOOTH_STATUS_BROKER};
+use super::bluetooth_button::BluetoothButton;
 
 pub struct Header {
-    bluetooth_button: Controller<BluetoothButton>,
+    bluetooth_button: AsyncController<BluetoothButton>,
 }
 
 impl SimpleAsyncComponent for Header {
     type Input = ();
     type Output = ();
-    type Init = ();
+    type Init = Rc<Option<BikeBt>>;
     type Root = relm4::adw::HeaderBar;
     type Widgets = ();
 
@@ -22,14 +24,12 @@ impl SimpleAsyncComponent for Header {
     }
 
     async fn init(
-        _init: Self::Init,
+        bike_bt: Self::Init,
         root: Self::Root,
         _sender: relm4::AsyncComponentSender<Self>,
     ) -> relm4::prelude::AsyncComponentParts<Self> {
-        let bluetooth_button = BluetoothButton::builder()
-            .launch_with_broker(BluetoothStatus::Unavailable, &BLUETOOTH_STATUS_BROKER)
-            .detach();
-        root.pack_start(bluetooth_button.widget());
+        let bluetooth_button = BluetoothButton::builder().launch(bike_bt).detach();
+        root.pack_end(bluetooth_button.widget());
         let model = Header { bluetooth_button };
         AsyncComponentParts { model, widgets: () }
     }

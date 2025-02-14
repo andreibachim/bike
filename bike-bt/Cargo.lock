@@ -44,6 +44,7 @@ version = "0.1.0"
 dependencies = [
  "bluer",
  "futures",
+ "tokio",
 ]
 
 [[package]]

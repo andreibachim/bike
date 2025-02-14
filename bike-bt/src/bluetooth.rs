@@ -1,7 +1,7 @@
 use crate::{BluetoothError, BluetoothStatus, Device, DeviceDiscoveryEvent};
 use bluer::{
     AdapterEvent::{DeviceAdded, DeviceRemoved, PropertyChanged},
-    Address,
+    AdapterProperty, Address,
 };
 use futures::{stream::StreamExt, Stream};
 
@@ -58,6 +58,30 @@ impl BikeBt {
                 }
             });
         Ok::<_, BluetoothError>(stream)
+    }
+
+    pub async fn register_adapter_listener(
+        &self,
+    ) -> Result<impl Stream<Item = BluetoothStatus>, BluetoothError> {
+        let stream = self
+            .adapter
+            .events()
+            .await
+            .map_err(|_| BluetoothError::ScanFailed)?
+            .filter_map(move |event| async {
+                match event {
+                    DeviceAdded(_) => None,
+                    DeviceRemoved(_) => None,
+                    PropertyChanged(adapter_property) => match adapter_property {
+                        AdapterProperty::Powered(value) => Some(match value {
+                            true => BluetoothStatus::Disconnected,
+                            false => BluetoothStatus::PoweredOff,
+                        }),
+                        _ => None,
+                    },
+                }
+            });
+        Ok(stream)
     }
 
     async fn get_device(&self, address: Address) -> Result<Device, ()> {

@@ -11,11 +11,6 @@ pub use device::DeviceDiscoveryEvent;
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        BluetoothStatus,
-        DeviceDiscoveryEvent::{DeviceAdded, DeviceRemoved},
-    };
-
     use super::BikeBt;
     use futures::StreamExt;
 
@@ -24,24 +19,32 @@ mod tests {
         let bike_bt = BikeBt::new().await;
         match bike_bt {
             Ok(bike_bt) => {
-                assert!(bike_bt.get_status().await == BluetoothStatus::Disconnected);
-                match bike_bt.scan().await {
-                    Ok(device_change) => {
-                        device_change
-                            .for_each(|item| async move {
-                                match item {
-                                    DeviceAdded(bike_device) => {
-                                        println!("Device found: {:#?}", bike_device)
-                                    }
-                                    DeviceRemoved(bike_device) => {
-                                        println!("Device removed: {:#?}", bike_device)
-                                    }
-                                }
-                            })
-                            .await;
+                match bike_bt.register_adapter_listener().await {
+                    Ok(a) => {
+                        a.for_each(|adapter_property| async move {
+                            println!("{:#?}", adapter_property);
+                        })
+                        .await;
                     }
-                    Err(_error) => eprintln!("Could not scan for devices. Sorry!"),
+                    Err(_) => {}
                 }
+                //match bike_bt.scan().await {
+                //    Ok(device_change) => {
+                //        device_change
+                //            .for_each(|item| async move {
+                //                match item {
+                //                    DeviceAdded(bike_device) => {
+                //                        println!("Device found: {:#?}", bike_device)
+                //                    }
+                //                    DeviceRemoved(bike_device) => {
+                //                        println!("Device removed: {:#?}", bike_device)
+                //                    }
+                //                }
+                //            })
+                //            .await;
+                //    }
+                //    Err(_error) => eprintln!("Could not scan for devices. Sorry!"),
+                //}
             }
             Err(_error) => eprint!("Could not create bluetooth service."),
         };

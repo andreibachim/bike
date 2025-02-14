@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 bluer = { version = "0.17.3", features = [ "bluetoothd" ] }
 futures = { version = "0.3.31" }
+
+[dev-dependencies]
+tokio = { version = "1.43.0", features = ["rt-multi-thread"] }

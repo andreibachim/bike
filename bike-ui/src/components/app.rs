@@ -1,4 +1,6 @@
-use bike_bt::{BikeBt, BluetoothStatus};
+use std::rc::Rc;
+
+use bike_bt::BikeBt;
 use relm4::{
     adw::prelude::AdwApplicationWindowExt,
     prelude::{
@@ -7,12 +9,11 @@ use relm4::{
     },
 };
 
-use crate::components::bluetooth_button::BLUETOOTH_STATUS_BROKER;
-
-use super::{bluetooth_button::BluetoothButtonInput, Header};
+use super::Header;
 
 pub struct App {
     header: AsyncController<Header>,
+    bike_bt: Rc<Option<BikeBt>>,
 }
 
 impl SimpleAsyncComponent for App {
@@ -35,23 +36,18 @@ impl SimpleAsyncComponent for App {
         root: Self::Root,
         _sender: relm4::AsyncComponentSender<Self>,
     ) -> relm4::prelude::AsyncComponentParts<Self> {
-        match BikeBt::new().await {
-            Ok(bike_bt) => {
-                BLUETOOTH_STATUS_BROKER
-                    .send(BluetoothButtonInput::SetStatus(bike_bt.get_status().await));
-                Some(bike_bt)
-            }
+        let bike_bt = match BikeBt::new().await {
+            Ok(bike_bt) => Some(bike_bt),
             Err(error) => {
-                BLUETOOTH_STATUS_BROKER.send(BluetoothButtonInput::SetStatus(
-                    BluetoothStatus::Unavailable,
-                ));
                 eprintln!("Could not start bluetooth session. Error: {}", error);
-                None
+                todo!("Show error dialog");
             }
         };
 
+        let bike_bt = Rc::new(bike_bt);
+
         //Create the header
-        let header = Header::builder().launch(()).detach();
+        let header = Header::builder().launch(bike_bt.clone()).detach();
 
         //Setup the toolbar view
         let toolbar_view = relm4::adw::ToolbarView::new();
@@ -59,7 +55,7 @@ impl SimpleAsyncComponent for App {
         root.set_content(Some(&toolbar_view));
 
         AsyncComponentParts {
-            model: App { header },
+            model: App { header, bike_bt },
             widgets: (),
         }
     }

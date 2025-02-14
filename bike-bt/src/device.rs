@@ -15,6 +15,7 @@ impl Device {
     }
 }
 
+#[derive(Debug)]
 pub enum DeviceDiscoveryEvent {
     DeviceAdded(Device),
     DeviceRemoved(Device),
