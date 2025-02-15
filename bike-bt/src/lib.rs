@@ -9,6 +9,7 @@ pub use bluetooth_status::BluetoothStatus;
 pub use device::Device;
 pub use device::DeviceDiscoveryEvent;
 pub use device::DeviceSignalStrength;
+pub use bluer::Address;
 
 #[cfg(test)]
 mod tests {

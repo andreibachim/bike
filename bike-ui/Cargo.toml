@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 relm4 = { version = "0.9.1", features = ["macros", "gnome_47", "adw", "libadwaita"] }
 futures = { version = "0.3.31" }
+# async-channel = { version = "2.3.1" }
 # relm4-components = { version = "0.9.1" }
 # tracker = { version = "0.2.2" }
 bike-bt = { path = "../bike-bt/" }

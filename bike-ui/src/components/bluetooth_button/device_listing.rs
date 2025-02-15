@@ -41,7 +41,6 @@ impl AsyncFactoryComponent for DeviceListing {
             .build();
         container.append(&device_name);
         root.set_child(Some(&container));
-        println!("Hello");
     }
 
     async fn init_model(

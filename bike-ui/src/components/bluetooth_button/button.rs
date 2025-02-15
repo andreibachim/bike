@@ -3,8 +3,7 @@ use futures::StreamExt;
 use relm4::{
     adw::prelude::AdwDialogExt,
     gtk::{
-        glib::{clone, MainContext},
-        prelude::{ButtonExt, WidgetExt},
+        gio::prelude::ApplicationExt, glib::{clone, MainContext}, prelude::{ButtonExt, WidgetExt}
     },
     prelude::{
         AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController,
@@ -69,6 +68,7 @@ impl SimpleAsyncComponent for BluetoothButton {
         root.connect_clicked(clone!(
             move |btn| sender.input(BluetoothButtonInput::Clicked(btn.clone()))
         ));
+
         let model = BluetoothButton {
             status: BluetoothStatus::Connected,
             connect_dialog,
@@ -92,6 +92,15 @@ impl SimpleAsyncComponent for BluetoothButton {
                         let widget = self.connect_dialog.widget();
                         let window = owner.toplevel_window();
                         widget.present(window.as_ref());
+                        let s = self.connect_dialog.sender().clone();
+                        widget.connect_closed(move |_| {
+                            match s.send(ConnectDialogInput::StopScanning) {
+                                Ok(_) => {},
+                                Err(_) => {
+                                    relm4::main_application().quit();
+                                }, 
+                            }
+                        });
                     }
                 }
                 _ => {
