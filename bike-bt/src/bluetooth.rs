@@ -36,7 +36,9 @@ impl BikeBt {
         )
     }
 
-    pub async fn scan(&self) -> Result<impl Stream<Item = DeviceDiscoveryEvent> + use<'_>, BluetoothError> {
+    pub async fn scan(
+        &self,
+    ) -> Result<impl Stream<Item = DeviceDiscoveryEvent> + use<'_>, BluetoothError> {
         let stream = self
             .adapter
             .discover_devices()
@@ -45,18 +47,11 @@ impl BikeBt {
             .filter_map(|itm| async {
                 let item = itm;
                 match item {
-                    DeviceAdded(address) => {
-                        match self.get_device(address).await {
-                            Ok(device) => Some(DeviceDiscoveryEvent::DeviceAdded(device)),
-                            Err(_) => None,
-                        }
-                    }, 
-                    DeviceRemoved(address) => {
-                        match self.get_device(address).await {
-                            Ok(device) => Some(DeviceDiscoveryEvent::DeviceRemoved(device)),
-                            Err(_) => None,
-                        }
+                    DeviceAdded(address) => match self.get_device(address).await {
+                        Ok(device) => Some(DeviceDiscoveryEvent::DeviceAdded(device)),
+                        Err(_) => None,
                     },
+                    DeviceRemoved(address) => Some(DeviceDiscoveryEvent::DeviceRemoved(address)),
                     PropertyChanged(_) => None,
                 }
             });

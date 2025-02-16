@@ -1,12 +1,12 @@
-use bike_bt::Device;
+use bike_bt::{Address, Device};
 use futures::StreamExt;
 use relm4::{
     adw::{
         prelude::{AdwDialogExt, PreferencesPageExt},
         PreferencesGroup, PreferencesPage,
     },
-    gtk::glib::MainContext,
-    prelude::{AsyncComponentParts, AsyncFactoryVecDeque, SimpleAsyncComponent}, 
+    prelude::{AsyncComponentParts, AsyncFactoryVecDeque, SimpleAsyncComponent},
+    spawn_local,
 };
 
 use crate::components::app::APP_DATA;
@@ -16,7 +16,7 @@ use super::DeviceListing;
 pub struct ConnectDialog {
     #[allow(dead_code)]
     devices: AsyncFactoryVecDeque<DeviceListing>,
-    join_handle: Option<relm4::gtk::glib::JoinHandle<()>>,
+    join_handle: relm4::gtk::glib::JoinHandle<()>,
 }
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ pub enum ConnectDialogInput {
     StartScanning,
     StopScanning,
     DeviceAdded(Device),
-    DeviceRemoved(Device),
+    DeviceRemoved(Address),
 }
 
 impl SimpleAsyncComponent for ConnectDialog {
@@ -68,7 +68,10 @@ impl SimpleAsyncComponent for ConnectDialog {
         root.set_child(Some(&preference_page));
 
         AsyncComponentParts {
-            model: ConnectDialog { devices, join_handle: None },
+            model: ConnectDialog {
+                devices,
+                join_handle: spawn_local(async {}),
+            },
             widgets: (),
         }
     }
@@ -76,7 +79,7 @@ impl SimpleAsyncComponent for ConnectDialog {
         match message {
             ConnectDialogInput::StartScanning => {
                 self.devices.guard().clear();
-                let join_handle = MainContext::default().spawn_local(async move {
+                let join_handle = spawn_local(async move {
                     if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
                         if let Ok(stream) = bike_bt.scan().await {
                             stream
@@ -86,8 +89,9 @@ impl SimpleAsyncComponent for ConnectDialog {
                                         bike_bt::DeviceDiscoveryEvent::DeviceAdded(device) => {
                                             sender.input(ConnectDialogInput::DeviceAdded(device));
                                         }
-                                        bike_bt::DeviceDiscoveryEvent::DeviceRemoved(device) => {
-                                            sender.input(ConnectDialogInput::DeviceRemoved(device));
+                                        bike_bt::DeviceDiscoveryEvent::DeviceRemoved(address) => {
+                                            sender
+                                                .input(ConnectDialogInput::DeviceRemoved(address));
                                         }
                                     }
                                 })
@@ -95,20 +99,29 @@ impl SimpleAsyncComponent for ConnectDialog {
                         }
                     }
                 });
-                self.join_handle = Some(join_handle);
+                self.join_handle = join_handle;
             }
             ConnectDialogInput::StopScanning => {
-                self.join_handle.take().inspect(|handle| {
-                    handle.abort();
-                });
+                self.join_handle.abort();
             }
             ConnectDialogInput::DeviceAdded(device) => {
                 println!("Add a new device");
-                self.devices.guard().push_back(device);
+                if !self.devices.guard().iter().any(|listing| match listing {
+                    Some(listing) => listing.device.address == device.address,
+                    None => false,
+                }) {
+                    self.devices.guard().push_back(device);
+                }
             }
-            ConnectDialogInput::DeviceRemoved(device) => {
+            ConnectDialogInput::DeviceRemoved(address) => {
                 println!("Remove a device");
-                println!("{:#?}", device);
+                let index = self.devices.guard().iter().position(|a| match a {
+                    Some(device_listing) => device_listing.device.address == address.to_string(),
+                    None => false,
+                });
+                if let Some(index) = index {
+                    self.devices.guard().remove(index);
+                }
             }
         };
     }

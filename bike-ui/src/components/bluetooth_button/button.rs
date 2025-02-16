@@ -3,13 +3,15 @@ use futures::StreamExt;
 use relm4::{
     adw::prelude::AdwDialogExt,
     gtk::{
-        gio::prelude::ApplicationExt, glib::{clone, MainContext}, prelude::{ButtonExt, WidgetExt}
+        gio::prelude::ApplicationExt,
+        glib::clone,
+        prelude::{ButtonExt, WidgetExt},
     },
     prelude::{
         AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController,
         SimpleAsyncComponent,
     },
-    RelmWidgetExt,
+    spawn_local, RelmWidgetExt,
 };
 
 use crate::components::app::APP_DATA;
@@ -54,7 +56,7 @@ impl SimpleAsyncComponent for BluetoothButton {
             sender.input(BluetoothButtonInput::SetStatus(bike_bt.get_status().await));
             if let Ok(event_stream) = bike_bt.register_adapter_listener().await {
                 let sender = sender.clone();
-                MainContext::default().spawn_local(async move {
+                spawn_local(async move {
                     Box::pin(event_stream.for_each(|item| async {
                         sender.input(BluetoothButtonInput::SetStatus(item));
                     }))
@@ -95,10 +97,10 @@ impl SimpleAsyncComponent for BluetoothButton {
                         let s = self.connect_dialog.sender().clone();
                         widget.connect_closed(move |_| {
                             match s.send(ConnectDialogInput::StopScanning) {
-                                Ok(_) => {},
+                                Ok(_) => {}
                                 Err(_) => {
                                     relm4::main_application().quit();
-                                }, 
+                                }
                             }
                         });
                     }

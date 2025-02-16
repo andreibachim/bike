@@ -6,7 +6,7 @@ use relm4::{
 };
 
 pub struct DeviceListing {
-    device: bike_bt::Device,
+    pub device: bike_bt::Device,
 }
 
 impl AsyncFactoryComponent for DeviceListing {

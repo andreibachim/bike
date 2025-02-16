@@ -1,3 +1,5 @@
+use bluer::Address;
+
 #[derive(Debug)]
 pub struct Device {
     pub address: String,
@@ -18,7 +20,7 @@ impl Device {
 #[derive(Debug)]
 pub enum DeviceDiscoveryEvent {
     DeviceAdded(Device),
-    DeviceRemoved(Device),
+    DeviceRemoved(Address),
 }
 
 #[derive(Debug)]
