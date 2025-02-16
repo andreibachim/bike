@@ -85,7 +85,8 @@ impl BikeBt {
     pub async fn get_device(&self, address: Address) -> Result<Device, ()> {
         let device = self.adapter.device(address).map_err(|_| ())?;
         let name = device.name().await.map_err(|_| ())?.ok_or(())?;
-        let rssi = device.rssi().await.ok().flatten().unwrap_or(-101_i16);
-        Ok(Device::new(address.to_string(), name, rssi))
+        let paired = device.is_paired().await.unwrap_or(false);
+        let rssi = device.rssi().await.ok().flatten().unwrap_or(-121_i16);
+        Ok(Device::new(address.to_string(), name, paired ,rssi))
     }
 }

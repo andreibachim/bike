@@ -4,14 +4,16 @@ use bluer::Address;
 pub struct Device {
     pub address: String,
     pub name: String,
+    pub paired: bool,
     pub signal: DeviceSignalStrength,
 }
 
 impl Device {
-    pub fn new(address: String, name: String, signal: i16) -> Self {
+    pub fn new(address: String, name: String, paired: bool, signal: i16) -> Self {
         Self {
             address,
             name,
+            paired,
             signal: DeviceSignalStrength::from(signal),
         }
     }
@@ -27,17 +29,19 @@ pub enum DeviceDiscoveryEvent {
 pub enum DeviceSignalStrength {
     NoSignal,
     Weak,
-    Medium,
+    Ok,
+    Good,
     Full,
 }
 
 impl DeviceSignalStrength {
     fn from(value: i16) -> Self {
         match value {
-            i16::MIN..=-100 => Self::NoSignal,
-            -99..=-70 => Self::Weak,
-            -69..=-40 => Self::Medium,
-            -39..=0 => Self::Full,
+            i16::MIN..=-120 => Self::NoSignal,
+            -119..=-90 => Self::Weak,
+            -89..=-60 => Self::Ok,
+            -59..=-30 => Self::Good,
+            -29..=0 => Self::Full,
             _ => Self::NoSignal,
         }
     }

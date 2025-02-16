@@ -1,7 +1,9 @@
 use bike_bt::Device;
 use relm4::{
-    adw::{ActionRow, PreferencesGroup},
-    gtk::prelude::{BoxExt, ListBoxRowExt, WidgetExt},
+    adw::{
+        prelude::{ActionRowExt, PreferencesRowExt},
+        ActionRow, PreferencesGroup,
+    },
     prelude::AsyncFactoryComponent,
 };
 
@@ -19,7 +21,7 @@ impl AsyncFactoryComponent for DeviceListing {
     type Widgets = ();
 
     fn init_root() -> Self::Root {
-        ActionRow::new()
+        ActionRow::builder().build()
     }
 
     fn init_widgets(
@@ -29,18 +31,28 @@ impl AsyncFactoryComponent for DeviceListing {
         _returned_widget: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget,
         _sender: relm4::AsyncFactorySender<Self>,
     ) -> Self::Widgets {
-        let container = relm4::gtk::Box::builder()
-            .orientation(relm4::gtk::Orientation::Horizontal)
-            .hexpand(true)
+        //Signal strength
+        let signal_icon = relm4::gtk::Image::builder()
+            .icon_name(match self.device.signal {
+                bike_bt::DeviceSignalStrength::NoSignal => "network-cellular-offline-symbolic",
+                bike_bt::DeviceSignalStrength::Weak => "network-cellular-signal-weak-symbolic",
+                bike_bt::DeviceSignalStrength::Ok => "network-cellular-signal-ok-symbolic",
+                bike_bt::DeviceSignalStrength::Good => "network-cellular-signal-good-symbolic",
+                bike_bt::DeviceSignalStrength::Full => "network-cellular-signal-excellent-symbolic",
+            })
             .build();
-        container.set_css_classes(&["header"]);
-        let device_name = relm4::gtk::Label::builder()
-            .label(&self.device.name)
-            .hexpand(true)
-            .halign(relm4::gtk::Align::Start)
-            .build();
-        container.append(&device_name);
-        root.set_child(Some(&container));
+        root.add_suffix(&signal_icon);
+        root.set_activatable_widget(Some(&signal_icon));
+
+        root.set_title(&self.device.name);
+        root.set_subtitle(match self.device.paired {
+            true => "Disconnected",
+            false => "Not Set Up",
+        });
+
+        root.connect_activated(|_| {
+            println!("Hello");
+        });
     }
 
     async fn init_model(

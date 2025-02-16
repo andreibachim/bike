@@ -105,7 +105,6 @@ impl SimpleAsyncComponent for ConnectDialog {
                 self.join_handle.abort();
             }
             ConnectDialogInput::DeviceAdded(device) => {
-                println!("Add a new device");
                 if !self.devices.guard().iter().any(|listing| match listing {
                     Some(listing) => listing.device.address == device.address,
                     None => false,
@@ -114,7 +113,6 @@ impl SimpleAsyncComponent for ConnectDialog {
                 }
             }
             ConnectDialogInput::DeviceRemoved(address) => {
-                println!("Remove a device");
                 let index = self.devices.guard().iter().position(|a| match a {
                     Some(device_listing) => device_listing.device.address == address.to_string(),
                     None => false,
