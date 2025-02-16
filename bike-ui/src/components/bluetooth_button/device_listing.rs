@@ -4,14 +4,15 @@ use relm4::{
         prelude::{ActionRowExt, PreferencesRowExt},
         ActionRow, PreferencesGroup,
     },
-    prelude::AsyncFactoryComponent,
+    gtk::Label,
+    prelude::{DynamicIndex, FactoryComponent},
 };
 
 pub struct DeviceListing {
     pub device: bike_bt::Device,
 }
 
-impl AsyncFactoryComponent for DeviceListing {
+impl FactoryComponent for DeviceListing {
     type ParentWidget = PreferencesGroup;
     type CommandOutput = ();
     type Input = ();
@@ -19,8 +20,9 @@ impl AsyncFactoryComponent for DeviceListing {
     type Init = Device;
     type Root = ActionRow;
     type Widgets = ();
+    type Index = DynamicIndex;
 
-    fn init_root() -> Self::Root {
+    fn init_root(&self) -> Self::Root {
         ActionRow::builder().build()
     }
 
@@ -29,36 +31,29 @@ impl AsyncFactoryComponent for DeviceListing {
         _index: &relm4::prelude::DynamicIndex,
         root: Self::Root,
         _returned_widget: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget,
-        _sender: relm4::AsyncFactorySender<Self>,
+        _sender: relm4::FactorySender<Self>,
     ) -> Self::Widgets {
-        //Signal strength
-        let signal_icon = relm4::gtk::Image::builder()
-            .icon_name(match self.device.signal {
-                bike_bt::DeviceSignalStrength::NoSignal => "network-cellular-offline-symbolic",
-                bike_bt::DeviceSignalStrength::Weak => "network-cellular-signal-weak-symbolic",
-                bike_bt::DeviceSignalStrength::Ok => "network-cellular-signal-ok-symbolic",
-                bike_bt::DeviceSignalStrength::Good => "network-cellular-signal-good-symbolic",
-                bike_bt::DeviceSignalStrength::Full => "network-cellular-signal-excellent-symbolic",
-            })
-            .build();
-        root.add_suffix(&signal_icon);
-        root.set_activatable_widget(Some(&signal_icon));
-
         root.set_title(&self.device.name);
-        root.set_subtitle(match self.device.paired {
-            true => "Disconnected",
-            false => "Not Set Up",
-        });
+
+        let suffix = Label::builder()
+            .label(match self.device.paired {
+                true => "Disconnected",
+                false => "Not Set Up",
+            })
+            .css_classes(["dim-label"])
+            .build();
+        root.set_activatable_widget(Some(&suffix));
+        root.add_suffix(&suffix);
 
         root.connect_activated(|_| {
             println!("Hello");
         });
     }
 
-    async fn init_model(
+    fn init_model(
         device: Self::Init,
         _index: &relm4::prelude::DynamicIndex,
-        _sender: relm4::AsyncFactorySender<Self>,
+        _sender: relm4::FactorySender<Self>,
     ) -> Self {
         DeviceListing { device }
     }

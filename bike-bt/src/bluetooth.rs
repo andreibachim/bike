@@ -87,6 +87,6 @@ impl BikeBt {
         let name = device.name().await.map_err(|_| ())?.ok_or(())?;
         let paired = device.is_paired().await.unwrap_or(false);
         let rssi = device.rssi().await.ok().flatten().unwrap_or(-121_i16);
-        Ok(Device::new(address.to_string(), name, paired ,rssi))
+        Ok(Device::new(address.to_string(), name, paired, rssi))
     }
 }

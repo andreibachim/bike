@@ -57,6 +57,8 @@ impl SimpleAsyncComponent for App {
         //Setup the toolbar view
         let toolbar_view = relm4::adw::ToolbarView::new();
         toolbar_view.add_top_bar(&header_bar);
+
+        //Content
         root.set_content(Some(&toolbar_view));
 
         AsyncComponentParts {

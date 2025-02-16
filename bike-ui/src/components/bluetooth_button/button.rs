@@ -3,7 +3,6 @@ use futures::StreamExt;
 use relm4::{
     adw::prelude::AdwDialogExt,
     gtk::{
-        gio::prelude::ApplicationExt,
         glib::clone,
         prelude::{ButtonExt, WidgetExt},
     },
@@ -16,7 +15,7 @@ use relm4::{
 
 use crate::components::app::APP_DATA;
 
-use super::{connect_window::ConnectDialogInput, ConnectDialog};
+use super::ConnectDialog;
 
 pub struct BluetoothButton {
     status: BluetoothStatus,
@@ -85,25 +84,9 @@ impl SimpleAsyncComponent for BluetoothButton {
             BluetoothButtonInput::SetStatus(bluetooth_status) => self.status = bluetooth_status,
             BluetoothButtonInput::Clicked(owner) => match self.status {
                 BluetoothStatus::Disconnected => {
-                    if self
-                        .connect_dialog
-                        .sender()
-                        .send(ConnectDialogInput::StartScanning)
-                        .is_ok()
-                    {
-                        let widget = self.connect_dialog.widget();
-                        let window = owner.toplevel_window();
-                        widget.present(window.as_ref());
-                        let s = self.connect_dialog.sender().clone();
-                        widget.connect_closed(move |_| {
-                            match s.send(ConnectDialogInput::StopScanning) {
-                                Ok(_) => {}
-                                Err(_) => {
-                                    relm4::main_application().quit();
-                                }
-                            }
-                        });
-                    }
+                    let widget = self.connect_dialog.widget();
+                    let window = owner.toplevel_window();
+                    widget.present(window.as_ref());
                 }
                 _ => {
                     println!("{:#?}", self.status);

@@ -5,7 +5,8 @@ use relm4::{
         prelude::{AdwDialogExt, PreferencesPageExt},
         PreferencesGroup, PreferencesPage,
     },
-    prelude::{AsyncComponentParts, AsyncFactoryVecDeque, SimpleAsyncComponent},
+    gtk::{glib::clone, prelude::WidgetExt},
+    prelude::{AsyncComponentParts, FactoryVecDeque, SimpleAsyncComponent},
     spawn_local,
 };
 
@@ -15,7 +16,7 @@ use super::DeviceListing;
 
 pub struct ConnectDialog {
     #[allow(dead_code)]
-    devices: AsyncFactoryVecDeque<DeviceListing>,
+    devices: FactoryVecDeque<DeviceListing>,
     join_handle: relm4::gtk::glib::JoinHandle<()>,
 }
 
@@ -46,8 +47,23 @@ impl SimpleAsyncComponent for ConnectDialog {
     async fn init(
         _init: Self::Init,
         root: Self::Root,
-        _sender: relm4::AsyncComponentSender<Self>,
+        sender: relm4::AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+        root.connect_realize(clone!(
+            #[strong]
+            sender,
+            move |_| {
+                sender.input(ConnectDialogInput::StartScanning);
+            }
+        ));
+        root.connect_closed(clone!(
+            #[strong]
+            sender,
+            move |_| {
+                sender.input(ConnectDialogInput::StopScanning);
+            }
+        ));
+
         let preference_page = PreferencesPage::builder()
             .margin_end(20)
             .margin_start(20)
@@ -57,13 +73,12 @@ impl SimpleAsyncComponent for ConnectDialog {
 
         let preference_group = PreferencesGroup::builder()
             .title("Devices")
-            .description("Available devices")
+            .description("Please ensure your device is discoverable")
             .build();
         preference_page.add(&preference_group);
 
-        let devices: AsyncFactoryVecDeque<DeviceListing> = AsyncFactoryVecDeque::builder()
-            .launch(preference_group)
-            .detach();
+        let devices: FactoryVecDeque<DeviceListing> =
+            FactoryVecDeque::builder().launch(preference_group).detach();
 
         root.set_child(Some(&preference_page));
 
@@ -105,18 +120,19 @@ impl SimpleAsyncComponent for ConnectDialog {
                 self.join_handle.abort();
             }
             ConnectDialogInput::DeviceAdded(device) => {
-                if !self.devices.guard().iter().any(|listing| match listing {
-                    Some(listing) => listing.device.address == device.address,
-                    None => false,
-                }) {
+                if !self
+                    .devices
+                    .iter()
+                    .any(|listing| listing.device.address == device.address)
+                {
                     self.devices.guard().push_back(device);
                 }
             }
             ConnectDialogInput::DeviceRemoved(address) => {
-                let index = self.devices.guard().iter().position(|a| match a {
-                    Some(device_listing) => device_listing.device.address == address.to_string(),
-                    None => false,
-                });
+                let index = self
+                    .devices
+                    .iter()
+                    .position(|listing| listing.device.address == address.to_string());
                 if let Some(index) = index {
                     self.devices.guard().remove(index);
                 }
