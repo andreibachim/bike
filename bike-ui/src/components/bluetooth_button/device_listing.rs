@@ -2,9 +2,9 @@ use bike_bt::Device;
 use relm4::{
     adw::{
         prelude::{ActionRowExt, PreferencesRowExt},
-        ActionRow, PreferencesGroup,
+        ActionRow, Bin, PreferencesGroup,
     },
-    gtk::Label,
+    gtk::{glib::clone, Label},
     prelude::{DynamicIndex, FactoryComponent},
 };
 
@@ -12,11 +12,16 @@ pub struct DeviceListing {
     pub device: bike_bt::Device,
 }
 
+#[derive(Debug)]
+pub enum DeviceListingOutput {
+    Connect,
+}
+
 impl FactoryComponent for DeviceListing {
     type ParentWidget = PreferencesGroup;
     type CommandOutput = ();
     type Input = ();
-    type Output = ();
+    type Output = DeviceListingOutput;
     type Init = Device;
     type Root = ActionRow;
     type Widgets = ();
@@ -31,10 +36,10 @@ impl FactoryComponent for DeviceListing {
         _index: &relm4::prelude::DynamicIndex,
         root: Self::Root,
         _returned_widget: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget,
-        _sender: relm4::FactorySender<Self>,
+        sender: relm4::FactorySender<Self>,
     ) -> Self::Widgets {
+        root.set_activatable_widget(Some(&Bin::new()));
         root.set_title(&self.device.name);
-
         let suffix = Label::builder()
             .label(match self.device.paired {
                 true => "Disconnected",
@@ -42,12 +47,14 @@ impl FactoryComponent for DeviceListing {
             })
             .css_classes(["dim-label"])
             .build();
-        root.set_activatable_widget(Some(&suffix));
         root.add_suffix(&suffix);
-
-        root.connect_activated(|_| {
-            println!("Hello");
-        });
+        root.connect_activated(clone!(
+            #[strong]
+            sender,
+            move |_| {
+                sender.output(DeviceListingOutput::Connect).expect("Asd");
+            }
+        ));
     }
 
     fn init_model(

@@ -2,14 +2,14 @@ use bluer::Address;
 
 #[derive(Debug)]
 pub struct Device {
-    pub address: String,
+    pub address: Address,
     pub name: String,
     pub paired: bool,
     pub signal: DeviceSignalStrength,
 }
 
 impl Device {
-    pub fn new(address: String, name: String, paired: bool, signal: i16) -> Self {
+    pub fn new(address: Address, name: String, paired: bool, signal: i16) -> Self {
         Self {
             address,
             name,
