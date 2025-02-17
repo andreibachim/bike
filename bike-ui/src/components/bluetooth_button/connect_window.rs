@@ -1,11 +1,17 @@
+use std::time::Duration;
+
 use bike_bt::{Address, Device};
 use futures::StreamExt;
 use relm4::{
     adw::{
         prelude::{AdwDialogExt, PreferencesPageExt},
-        NavigationPage, NavigationView, PreferencesGroup, PreferencesPage,
+        HeaderBar, NavigationPage, NavigationView, PreferencesGroup, PreferencesPage, ToolbarView,
     },
-    gtk::{glib::clone, prelude::WidgetExt, Label},
+    gtk::{
+        glib::{clone, timeout_future},
+        prelude::WidgetExt,
+        Label,
+    },
     prelude::{AsyncComponentParts, FactoryVecDeque, SimpleAsyncComponent},
     spawn_local,
 };
@@ -58,6 +64,7 @@ impl SimpleAsyncComponent for ConnectDialog {
                 sender.input(ConnectDialogInput::StartScanning);
             }
         ));
+
         root.connect_closed(clone!(
             #[strong]
             sender,
@@ -66,33 +73,16 @@ impl SimpleAsyncComponent for ConnectDialog {
             }
         ));
 
-        let navigation_view = NavigationView::new();
+        let navigation_view = NavigationView::builder().pop_on_escape(false).build();
         root.set_child(Some(&navigation_view));
 
-        let preference_page = PreferencesPage::builder()
-            .margin_end(20)
-            .margin_start(20)
-            .margin_bottom(20)
-            .margin_top(20)
-            .build();
-        let preference_group = PreferencesGroup::builder()
-            .title("Devices")
-            .description("Please ensure your device is discoverable")
-            .build();
+        let (scan_page, preferences_group) = create_scan_page();
+        navigation_view.add(&scan_page);
 
-        preference_page.add(&preference_group);
-        let scanning_page = NavigationPage::builder().title("Select device").child(&preference_page).build();
-        navigation_view.add(&scanning_page);
-
-        let connection_page = NavigationPage::builder()
-            .title("Device details")
-            .tag("connect")
-            .child(&Label::new(Some("Hello")))
-            .build();
-        navigation_view.add(&connection_page);
+        navigation_view.add(&create_connect_page());
 
         let devices: FactoryVecDeque<DeviceListing> = FactoryVecDeque::builder()
-            .launch(preference_group)
+            .launch(preferences_group)
             .forward(sender.input_sender(), |message| match message {
                 DeviceListingOutput::Connect => ConnectDialogInput::Connect,
             });
@@ -114,8 +104,7 @@ impl SimpleAsyncComponent for ConnectDialog {
                     if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
                         if let Ok(stream) = bike_bt.scan().await {
                             stream
-                                .for_each(|e| async {
-                                    let event = e;
+                                .for_each(|event| async {
                                     match event {
                                         bike_bt::DeviceDiscoveryEvent::DeviceAdded(device) => {
                                             sender.input(ConnectDialogInput::DeviceAdded(device));
@@ -134,6 +123,8 @@ impl SimpleAsyncComponent for ConnectDialog {
             }
             ConnectDialogInput::StopScanning => {
                 self.join_handle.abort();
+                timeout_future(Duration::from_millis(200)).await;
+                self.navigation_view.pop_to_tag("scan");
             }
             ConnectDialogInput::DeviceAdded(device) => {
                 if !self
@@ -158,4 +149,44 @@ impl SimpleAsyncComponent for ConnectDialog {
             }
         };
     }
+}
+
+fn create_scan_page() -> (NavigationPage, PreferencesGroup) {
+    let container = ToolbarView::builder().build();
+    container.add_top_bar(&HeaderBar::new());
+
+    let preference_page = PreferencesPage::builder()
+        .margin_end(20)
+        .margin_start(20)
+        .margin_bottom(20)
+        .margin_top(20)
+        .build();
+    let preference_group = PreferencesGroup::builder()
+        .title("Devices")
+        .description("Please ensure your device is discoverable")
+        .build();
+
+    preference_page.add(&preference_group);
+    container.set_content(Some(&preference_page));
+
+    (
+        NavigationPage::builder()
+            .title("Select device")
+            .tag("scan")
+            .child(&container)
+            .build(),
+        preference_group,
+    )
+}
+
+fn create_connect_page() -> NavigationPage {
+    let container = ToolbarView::builder().build();
+    container.add_top_bar(&HeaderBar::builder().show_back_button(false).build());
+    container.set_content(Some(&Label::new(Some("Hello"))));
+    NavigationPage::builder()
+        .title("Device details")
+        .can_pop(false)
+        .tag("connect")
+        .child(&container)
+        .build()
 }

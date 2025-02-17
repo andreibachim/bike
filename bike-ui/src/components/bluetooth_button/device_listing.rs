@@ -38,6 +38,8 @@ impl FactoryComponent for DeviceListing {
         _returned_widget: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget,
         sender: relm4::FactorySender<Self>,
     ) -> Self::Widgets {
+        root.add_prefix(&relm4::gtk::Image::builder().icon_name("zoom-in-symbolic").build());
+
         root.set_activatable_widget(Some(&Bin::new()));
         root.set_title(&self.device.name);
         let suffix = Label::builder()
@@ -52,7 +54,7 @@ impl FactoryComponent for DeviceListing {
             #[strong]
             sender,
             move |_| {
-                sender.output(DeviceListingOutput::Connect).expect("Asd");
+                sender.output(DeviceListingOutput::Connect).unwrap();
             }
         ));
     }
