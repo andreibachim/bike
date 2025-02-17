@@ -1,4 +1,4 @@
-use bike_bt::Device;
+use bike_bt::{Address, Device};
 use relm4::{
     adw::{
         prelude::{ActionRowExt, PreferencesRowExt},
@@ -14,7 +14,7 @@ pub struct DeviceListing {
 
 #[derive(Debug)]
 pub enum DeviceListingOutput {
-    Connect,
+    Connect(Address),
 }
 
 impl FactoryComponent for DeviceListing {
@@ -38,7 +38,11 @@ impl FactoryComponent for DeviceListing {
         _returned_widget: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget,
         sender: relm4::FactorySender<Self>,
     ) -> Self::Widgets {
-        root.add_prefix(&relm4::gtk::Image::builder().icon_name("zoom-in-symbolic").build());
+        root.add_prefix(
+            &relm4::gtk::Image::builder()
+                .icon_name("zoom-in-symbolic")
+                .build(),
+        );
 
         root.set_activatable_widget(Some(&Bin::new()));
         root.set_title(&self.device.name);
@@ -53,8 +57,10 @@ impl FactoryComponent for DeviceListing {
         root.connect_activated(clone!(
             #[strong]
             sender,
+            #[strong(rename_to=address)]
+            self.device.address,
             move |_| {
-                sender.output(DeviceListingOutput::Connect).unwrap();
+                let _ = sender.output(DeviceListingOutput::Connect(address));
             }
         ));
     }
@@ -62,7 +68,7 @@ impl FactoryComponent for DeviceListing {
     fn init_model(
         device: Self::Init,
         _index: &relm4::prelude::DynamicIndex,
-        _sender: relm4::FactorySender<Self>,
+        _ender: relm4::FactorySender<Self>,
     ) -> Self {
         DeviceListing { device }
     }

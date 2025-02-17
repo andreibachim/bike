@@ -33,7 +33,7 @@ pub enum ConnectDialogInput {
     StopScanning,
     DeviceAdded(Device),
     DeviceRemoved(Address),
-    Connect,
+    Connect(Address),
 }
 
 impl SimpleAsyncComponent for ConnectDialog {
@@ -84,7 +84,7 @@ impl SimpleAsyncComponent for ConnectDialog {
         let devices: FactoryVecDeque<DeviceListing> = FactoryVecDeque::builder()
             .launch(preferences_group)
             .forward(sender.input_sender(), |message| match message {
-                DeviceListingOutput::Connect => ConnectDialogInput::Connect,
+                DeviceListingOutput::Connect(address) => ConnectDialogInput::Connect(address),
             });
 
         AsyncComponentParts {
@@ -144,8 +144,18 @@ impl SimpleAsyncComponent for ConnectDialog {
                     self.devices.guard().remove(index);
                 }
             }
-            ConnectDialogInput::Connect => {
+            ConnectDialogInput::Connect(address) => {
                 self.navigation_view.push_by_tag("connect");
+                if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
+                    match bike_bt.connect(address).await {
+                        Ok(_) => {
+                            println!("connected");
+                        },
+                        Err(_) => {
+                            println!("connection failed");
+                        },
+                    }
+                };
             }
         };
     }

@@ -7,8 +7,7 @@ use relm4::{
         prelude::{ButtonExt, WidgetExt},
     },
     prelude::{
-        AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController,
-        SimpleAsyncComponent,
+        AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController, SimpleAsyncComponent
     },
     spawn_local, RelmWidgetExt,
 };

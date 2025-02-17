@@ -89,4 +89,17 @@ impl BikeBt {
         let rssi = device.rssi().await.ok().flatten().unwrap_or(-121_i16);
         Ok(Device::new(address, name, paired, rssi))
     }
+
+    pub async fn connect(&self, address: Address) -> Result<(), ()> {
+        let device = self.adapter.device(address).map_err(|_| ())?;
+        device.set_trusted(true).await.map_err(|_| ())?;
+        device.pair().await.map_err(|_| ())?;
+        device.uuids().await.map_err(|_| ())?.iter().for_each(|uuid| {
+            println!("UUID: {:#?}", uuid);
+        });
+        device.connect().await.map_err(|error| {
+            eprintln!("{}", error);
+            ()
+        })
+    }
 }
