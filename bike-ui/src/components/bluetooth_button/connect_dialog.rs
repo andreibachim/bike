@@ -146,16 +146,18 @@ impl SimpleAsyncComponent for ConnectDialog {
             }
             ConnectDialogInput::Connect(address) => {
                 self.navigation_view.push_by_tag("connect");
-                if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
+                let connected_device = if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
                     match bike_bt.connect(address).await {
-                        Ok(_) => {
-                            println!("connected");
-                        },
-                        Err(_) => {
-                            println!("connection failed");
-                        },
+                        Ok(device) => Some(device),
+                        Err(error) => {
+                            eprintln!("Could not connect to device. Error: {}", error);
+                            None
+                        }
                     }
+                } else {
+                    None
                 };
+                todo!("Implement writing the connected device to bike_bt");
             }
         };
     }

@@ -1,4 +1,6 @@
-use crate::{BluetoothError, BluetoothStatus, Device, DeviceDiscoveryEvent};
+use crate::{
+    bluetooth_error::DeviceConnectionError, BluetoothError, BluetoothStatus, ConnectedDevice, Device, DeviceDiscoveryEvent
+};
 use bluer::{
     AdapterEvent::{DeviceAdded, DeviceRemoved, PropertyChanged},
     AdapterProperty, Address,
@@ -6,8 +8,8 @@ use bluer::{
 use futures::{stream::StreamExt, Stream};
 
 pub struct BikeBt {
-    pub session: bluer::Session,
-    pub adapter: bluer::Adapter,
+    adapter: bluer::Adapter,
+    pub device: Option<Device>,
 }
 
 impl BikeBt {
@@ -20,7 +22,10 @@ impl BikeBt {
             .default_adapter()
             .await
             .map_err(|_| BluetoothError::NoAdapter)?;
-        Ok(Self { session, adapter })
+        Ok(Self {
+            adapter,
+            device: None,
+        })
     }
 
     pub async fn get_status(&self) -> BluetoothStatus {
@@ -47,10 +52,10 @@ impl BikeBt {
             .filter_map(|itm| async {
                 let item = itm;
                 match item {
-                    DeviceAdded(address) => match self.get_device(address).await {
-                        Ok(device) => Some(DeviceDiscoveryEvent::DeviceAdded(device)),
-                        Err(_) => None,
-                    },
+                    DeviceAdded(address) => self
+                        .get_device(address)
+                        .await
+                        .map(|device| DeviceDiscoveryEvent::DeviceAdded(device)),
                     DeviceRemoved(address) => Some(DeviceDiscoveryEvent::DeviceRemoved(address)),
                     PropertyChanged(_) => None,
                 }
@@ -82,24 +87,38 @@ impl BikeBt {
         Ok(stream)
     }
 
-    pub async fn get_device(&self, address: Address) -> Result<Device, ()> {
-        let device = self.adapter.device(address).map_err(|_| ())?;
-        let name = device.name().await.map_err(|_| ())?.ok_or(())?;
-        let paired = device.is_paired().await.unwrap_or(false);
-        let rssi = device.rssi().await.ok().flatten().unwrap_or(-121_i16);
-        Ok(Device::new(address, name, paired, rssi))
+    pub async fn get_device(&self, address: Address) -> Option<Device> {
+        match self.adapter.device(address).map_err(|_| ()) {
+            Ok(device) => Device::new(device).await,
+            Err(_) => None,
+        }
     }
 
-    pub async fn connect(&self, address: Address) -> Result<(), ()> {
-        let device = self.adapter.device(address).map_err(|_| ())?;
-        device.set_trusted(true).await.map_err(|_| ())?;
-        device.pair().await.map_err(|_| ())?;
-        device.uuids().await.map_err(|_| ())?.iter().for_each(|uuid| {
-            println!("UUID: {:#?}", uuid);
-        });
-        device.connect().await.map_err(|error| {
-            eprintln!("{}", error);
-            ()
-        })
+    pub async fn connect(&self, address: Address) -> Result<ConnectedDevice, DeviceConnectionError> {
+        let device = self
+            .adapter
+            .device(address)
+            .map_err(|error| DeviceConnectionError::new(error.message))?;
+        device
+            .set_trusted(true)
+            .await
+            .map_err(|error| DeviceConnectionError::new(error.message))?;
+        device
+            .pair()
+            .await
+            .map_err(|error| DeviceConnectionError::new(error.message))?;
+        //device
+        //    .uuids()
+        //    .await
+        //    .map_err(|error| DeviceConnectionError::new(error.message))?
+        //    .iter()
+        //    .for_each(|uuid| {
+        //        println!("UUID: {:#?}", uuid);
+        //    });
+        device
+            .connect()
+            .await
+            .map_err(|error| DeviceConnectionError::new(error.message))?;
+        Ok(ConnectedDevice::new(device))
     }
 }

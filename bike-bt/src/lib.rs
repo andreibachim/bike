@@ -2,6 +2,7 @@ mod bluetooth;
 mod bluetooth_error;
 mod bluetooth_status;
 mod device;
+mod connected_device;
 
 pub use bluetooth::BikeBt;
 pub use bluetooth_error::BluetoothError;
@@ -10,6 +11,8 @@ pub use device::Device;
 pub use device::DeviceDiscoveryEvent;
 pub use device::DeviceSignalStrength;
 pub use bluer::Address;
+pub use connected_device::ConnectedDevice;
+
 
 #[cfg(test)]
 mod tests {

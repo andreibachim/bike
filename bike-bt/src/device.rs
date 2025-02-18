@@ -9,13 +9,17 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(address: Address, name: String, paired: bool, signal: i16) -> Self {
-        Self {
+    pub async fn new(device: bluer::Device) -> Option<Self> {
+        let address = device.address();
+        let name = device.name().await.ok()??;
+        let paired = device.is_paired().await.unwrap_or(false);
+        let rssi = device.rssi().await.ok().flatten().unwrap_or(-121_i16);
+        Some(Self {
             address,
             name,
             paired,
-            signal: DeviceSignalStrength::from(signal),
-        }
+            signal: DeviceSignalStrength::from(rssi),
+        })
     }
 }
 

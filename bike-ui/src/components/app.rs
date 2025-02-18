@@ -48,7 +48,7 @@ impl SimpleAsyncComponent for App {
             }
         };
 
-        APP_DATA.write_inner().bike_bt = bike_bt;
+        APP_DATA.write().bike_bt = bike_bt;
 
         //Create the header
         let header_bar = HeaderBar::new();
