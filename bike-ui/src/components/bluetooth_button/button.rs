@@ -1,42 +1,42 @@
 use bike_bt::BluetoothStatus;
-use futures::StreamExt;
 use relm4::{
     adw::prelude::AdwDialogExt,
     gtk::{
         glib::clone,
         prelude::{ButtonExt, WidgetExt},
     },
-    prelude::{
-        AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController, SimpleAsyncComponent
-    },
-    spawn_local, RelmWidgetExt,
+    prelude::{AsyncComponent, AsyncComponentController, AsyncController},
+    Component, ComponentParts, MessageBroker, RelmWidgetExt,
 };
 
-use crate::components::app::APP_DATA;
+use crate::state_manager::StateManagerInput;
 
 use super::ConnectDialog;
 
+#[derive(Debug)]
+pub enum AdapterStateInput {
+    ChangeStatus(BluetoothStatus),
+    Clicked,
+}
+pub static ADAPTER_STATE_BROKER: MessageBroker<AdapterStateInput> = MessageBroker::new();
+
 pub struct BluetoothButton {
     status: BluetoothStatus,
+    #[allow(dead_code)]
     connect_dialog: AsyncController<ConnectDialog>,
-}
-
-#[derive(Debug)]
-pub enum BluetoothButtonInput {
-    SetStatus(BluetoothStatus),
-    Clicked(relm4::gtk::Button),
 }
 
 pub struct BluetoothStatusWidgets {
     button: relm4::gtk::Button,
 }
 
-impl SimpleAsyncComponent for BluetoothButton {
-    type Input = BluetoothButtonInput;
+impl Component for BluetoothButton {
+    type Input = AdapterStateInput;
     type Output = ();
     type Init = ();
     type Root = relm4::gtk::Button;
     type Widgets = BluetoothStatusWidgets;
+    type CommandOutput = ();
 
     fn init_root() -> Self::Root {
         relm4::gtk::Button::builder()
@@ -45,46 +45,44 @@ impl SimpleAsyncComponent for BluetoothButton {
             .build()
     }
 
-    async fn init(
-        _: Self::Init,
+    fn init(
+        _init: Self::Init,
         root: Self::Root,
-        sender: relm4::AsyncComponentSender<Self>,
-    ) -> relm4::prelude::AsyncComponentParts<Self> {
-        if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
-            sender.input(BluetoothButtonInput::SetStatus(bike_bt.get_status().await));
-            if let Ok(event_stream) = bike_bt.register_adapter_listener().await {
-                let sender = sender.clone();
-                spawn_local(async move {
-                    Box::pin(event_stream.for_each(|item| async {
-                        sender.input(BluetoothButtonInput::SetStatus(item));
-                    }))
-                    .await;
-                });
-            }
-        };
-
+        sender: relm4::ComponentSender<Self>,
+    ) -> relm4::ComponentParts<Self> {
+        crate::brokers::STATE_MANAGER.send(StateManagerInput::RegisterAdapterListener);
         let connect_dialog = ConnectDialog::builder().launch(()).detach();
 
         root.connect_clicked(clone!(
-            move |btn| sender.input(BluetoothButtonInput::Clicked(btn.clone()))
+            #[strong]
+            sender,
+            move |_| {
+                sender.input(AdapterStateInput::Clicked);
+            }
         ));
 
         let model = BluetoothButton {
-            status: BluetoothStatus::Connected,
+            status: BluetoothStatus::Unavailable,
             connect_dialog,
         };
 
         let widgets = BluetoothStatusWidgets { button: root };
-        AsyncComponentParts { model, widgets }
+
+        ComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, message: Self::Input, _sender: relm4::AsyncComponentSender<Self>) {
+    fn update(
+        &mut self,
+        message: Self::Input,
+        _sender: relm4::ComponentSender<Self>,
+        root: &Self::Root,
+    ) {
         match message {
-            BluetoothButtonInput::SetStatus(bluetooth_status) => self.status = bluetooth_status,
-            BluetoothButtonInput::Clicked(owner) => match self.status {
+            AdapterStateInput::ChangeStatus(bluetooth_status) => self.status = bluetooth_status,
+            AdapterStateInput::Clicked => match self.status {
                 BluetoothStatus::Disconnected => {
                     let widget = self.connect_dialog.widget();
-                    let window = owner.toplevel_window();
+                    let window = root.toplevel_window();
                     widget.present(window.as_ref());
                 }
                 _ => {
@@ -94,7 +92,7 @@ impl SimpleAsyncComponent for BluetoothButton {
         }
     }
 
-    fn update_view(&self, widgets: &mut Self::Widgets, _sender: relm4::AsyncComponentSender<Self>) {
+    fn update_view(&self, widgets: &mut Self::Widgets, _: relm4::ComponentSender<Self>) {
         match self.status {
             BluetoothStatus::Unavailable => {
                 widgets.button.set_sensitive(false);

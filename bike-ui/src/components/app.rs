@@ -1,26 +1,22 @@
-use bike_bt::BikeBt;
 use relm4::{
     adw::{prelude::AdwApplicationWindowExt, HeaderBar, ViewStack, ViewSwitcher},
     gtk::{prelude::BoxExt, Label},
-    prelude::{
-        AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncController,
-        SimpleAsyncComponent,
-    },
-    SharedState,
+    prelude::{AsyncComponent, AsyncController},
+    Component, ComponentController, ComponentParts, Controller, SimpleComponent,
 };
 
-use crate::app_data::AppData;
+use crate::{brokers::STATE_MANAGER, state_manager::StateManager};
 
-use super::bluetooth_button::BluetoothButton;
-
-pub static APP_DATA: SharedState<AppData> = SharedState::new();
+use crate::components::bluetooth_button::button::{BluetoothButton, ADAPTER_STATE_BROKER};
 
 pub struct App {
     #[allow(dead_code)]
-    bluetooth_button: AsyncController<BluetoothButton>,
+    state_manager: AsyncController<StateManager>,
+    #[allow(dead_code)]
+    bluetooth_button: Controller<BluetoothButton>,
 }
 
-impl SimpleAsyncComponent for App {
+impl SimpleComponent for App {
     type Input = ();
     type Output = ();
     type Init = ();
@@ -35,24 +31,20 @@ impl SimpleAsyncComponent for App {
             .build()
     }
 
-    async fn init(
+    fn init(
         _init: Self::Init,
         root: Self::Root,
-        _sender: relm4::AsyncComponentSender<Self>,
-    ) -> relm4::prelude::AsyncComponentParts<Self> {
-        let bike_bt = match BikeBt::new().await {
-            Ok(bike_bt) => Some(bike_bt),
-            Err(error) => {
-                eprintln!("Could not start bluetooth session. Error: {}", error);
-                todo!("Show error dialog");
-            }
-        };
-
-        APP_DATA.write().bike_bt = bike_bt;
+        _sender: relm4::ComponentSender<Self>,
+    ) -> relm4::ComponentParts<Self> {
+        let state_manager = StateManager::builder()
+            .launch_with_broker((), &STATE_MANAGER)
+            .detach();
 
         //Create the header
         let header_bar = HeaderBar::new();
-        let bluetooth_button = BluetoothButton::builder().launch(()).detach();
+        let bluetooth_button = BluetoothButton::builder()
+            .launch_with_broker((), &ADAPTER_STATE_BROKER)
+            .detach();
         header_bar.pack_end(bluetooth_button.widget());
 
         //Setup the toolbar view
@@ -90,8 +82,11 @@ impl SimpleAsyncComponent for App {
         //Content
         root.set_content(Some(&toolbar_view));
 
-        AsyncComponentParts {
-            model: App { bluetooth_button },
+        ComponentParts {
+            model: App {
+                state_manager,
+                bluetooth_button,
+            },
             widgets: (),
         }
     }

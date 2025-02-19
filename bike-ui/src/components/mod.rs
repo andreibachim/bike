@@ -1,4 +1,3 @@
 mod app;
 pub use app::App;
-
-mod bluetooth_button;
+pub mod bluetooth_button;

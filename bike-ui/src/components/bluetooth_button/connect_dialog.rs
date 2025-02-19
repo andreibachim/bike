@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use bike_bt::{Address, Device};
-use futures::StreamExt;
 use relm4::{
     adw::{
         prelude::{AdwDialogExt, PreferencesPageExt},
@@ -13,18 +12,23 @@ use relm4::{
         Label,
     },
     prelude::{AsyncComponentParts, FactoryVecDeque, SimpleAsyncComponent},
-    spawn_local,
+    Component, Controller,
 };
 
-use crate::components::app::APP_DATA;
+use crate::{brokers::STATE_MANAGER, state_manager::StateManagerInput};
 
-use super::{device_listing::DeviceListingOutput, DeviceListing};
+use super::{
+    device_discovery_listener::{DeviceDiscoveryListener, DEVICE_DISCOVER_BROKER},
+    device_listing::DeviceListingOutput,
+    DeviceListing,
+};
 
 pub struct ConnectDialog {
     #[allow(dead_code)]
     devices: FactoryVecDeque<DeviceListing>,
+    #[allow(dead_code)]
+    device_discovery_listener: Controller<DeviceDiscoveryListener>,
     navigation_view: NavigationView,
-    join_handle: relm4::gtk::glib::JoinHandle<()>,
 }
 
 #[derive(Debug)]
@@ -60,18 +64,25 @@ impl SimpleAsyncComponent for ConnectDialog {
         root.connect_realize(clone!(
             #[strong]
             sender,
-            move |_| {
-                sender.input(ConnectDialogInput::StartScanning);
-            }
+            move |_| sender.input(ConnectDialogInput::StartScanning)
         ));
 
         root.connect_closed(clone!(
             #[strong]
             sender,
-            move |_| {
-                sender.input(ConnectDialogInput::StopScanning);
-            }
+            move |_| sender.input(ConnectDialogInput::StopScanning)
         ));
+
+        let device_discovery_listener = DeviceDiscoveryListener::builder()
+            .launch_with_broker((), &DEVICE_DISCOVER_BROKER)
+            .forward(sender.input_sender(), |msg| match msg {
+                super::device_discovery_listener::DeviceDiscoveryEvent::DeviceFound(device) => {
+                    ConnectDialogInput::DeviceAdded(device)
+                }
+                super::device_discovery_listener::DeviceDiscoveryEvent::DeviceLost(address) => {
+                    ConnectDialogInput::DeviceRemoved(address)
+                }
+            });
 
         let navigation_view = NavigationView::builder().pop_on_escape(false).build();
         root.set_child(Some(&navigation_view));
@@ -90,39 +101,20 @@ impl SimpleAsyncComponent for ConnectDialog {
         AsyncComponentParts {
             model: ConnectDialog {
                 devices,
+                device_discovery_listener,
                 navigation_view,
-                join_handle: spawn_local(async {}),
             },
             widgets: (),
         }
     }
-    async fn update(&mut self, message: Self::Input, sender: relm4::AsyncComponentSender<Self>) {
+    async fn update(&mut self, message: Self::Input, _sender: relm4::AsyncComponentSender<Self>) {
         match message {
             ConnectDialogInput::StartScanning => {
                 self.devices.guard().clear();
-                let join_handle = spawn_local(async move {
-                    if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
-                        if let Ok(stream) = bike_bt.scan().await {
-                            stream
-                                .for_each(|event| async {
-                                    match event {
-                                        bike_bt::DeviceDiscoveryEvent::DeviceAdded(device) => {
-                                            sender.input(ConnectDialogInput::DeviceAdded(device));
-                                        }
-                                        bike_bt::DeviceDiscoveryEvent::DeviceRemoved(address) => {
-                                            sender
-                                                .input(ConnectDialogInput::DeviceRemoved(address));
-                                        }
-                                    }
-                                })
-                                .await;
-                        }
-                    }
-                });
-                self.join_handle = join_handle;
+                crate::brokers::STATE_MANAGER.send(StateManagerInput::StartScanningForDevices);
             }
             ConnectDialogInput::StopScanning => {
-                self.join_handle.abort();
+                crate::brokers::STATE_MANAGER.send(StateManagerInput::StopScanningForDevices);
                 timeout_future(Duration::from_millis(200)).await;
                 self.navigation_view.pop_to_tag("scan");
             }
@@ -146,18 +138,7 @@ impl SimpleAsyncComponent for ConnectDialog {
             }
             ConnectDialogInput::Connect(address) => {
                 self.navigation_view.push_by_tag("connect");
-                let connected_device = if let Some(bike_bt) = APP_DATA.read().bike_bt.as_ref() {
-                    match bike_bt.connect(address).await {
-                        Ok(device) => Some(device),
-                        Err(error) => {
-                            eprintln!("Could not connect to device. Error: {}", error);
-                            None
-                        }
-                    }
-                } else {
-                    None
-                };
-                todo!("Implement writing the connected device to bike_bt");
+                STATE_MANAGER.send(StateManagerInput::Connect(address));
             }
         };
     }
