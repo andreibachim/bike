@@ -1,4 +1,4 @@
-use bike_bt::{Address, Device};
+use bike_bt::{Address, Device, DeviceStatus};
 use relm4::{
     adw::{
         prelude::{ActionRowExt, PreferencesRowExt},
@@ -47,9 +47,10 @@ impl FactoryComponent for DeviceListing {
         root.set_activatable_widget(Some(&Bin::new()));
         root.set_title(&self.device.name);
         let suffix = Label::builder()
-            .label(match self.device.paired {
-                true => "Disconnected",
-                false => "Not Set Up",
+            .label(match self.device.status {
+                DeviceStatus::NotSetUp => "Not Set Up", 
+                DeviceStatus::Paired => "Disconnected", 
+                DeviceStatus::Connected => "Connected",
             })
             .css_classes(["dim-label"])
             .build();
