@@ -1,10 +1,14 @@
 #[derive(Debug)]
 pub struct ConnectedDevice {
     device: bluer::Device,
+    pub name: String,
 }
 
 impl ConnectedDevice {
-    pub fn new(device: bluer::Device) -> Self {
-        Self { device }
+    pub fn new(device: bluer::Device, name: String) -> Self {
+        Self { 
+            device,
+            name
+        }
     }
 }

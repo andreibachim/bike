@@ -9,18 +9,19 @@ use relm4::{
     gtk::{
         glib::{clone, timeout_future},
         prelude::WidgetExt,
-        Label,
     },
     prelude::{AsyncComponentParts, FactoryVecDeque, SimpleAsyncComponent},
-    Component, Controller,
+    Component, ComponentController, Controller,
 };
 
-use crate::{brokers::STATE_MANAGER, state_manager::StateManagerInput};
+use crate::{
+    brokers::STATE_MANAGER, components::active_device_details::{ActiveDeviceDetails, ACTIVE_DEVICE_DETAILS_BROKER},
+    state_manager::StateManagerInput,
+};
 
 use super::{
     device_discovery_listener::{DeviceDiscoveryListener, DEVICE_DISCOVER_BROKER},
-    device_listing::DeviceListingOutput,
-    DeviceListing,
+    device_listing::{DeviceListing, DeviceListingOutput},
 };
 
 pub struct ConnectDialog {
@@ -29,6 +30,8 @@ pub struct ConnectDialog {
     #[allow(dead_code)]
     device_discovery_listener: Controller<DeviceDiscoveryListener>,
     navigation_view: NavigationView,
+    #[allow(dead_code)]
+    active_device_details: Controller<ActiveDeviceDetails>,
 }
 
 #[derive(Debug)]
@@ -37,7 +40,7 @@ pub enum ConnectDialogInput {
     StopScanning,
     DeviceAdded(Device),
     DeviceRemoved(Address),
-    Connect(Address),
+    Connect(Address, String),
 }
 
 impl SimpleAsyncComponent for ConnectDialog {
@@ -90,18 +93,21 @@ impl SimpleAsyncComponent for ConnectDialog {
         let (scan_page, preferences_group) = create_scan_page();
         navigation_view.add(&scan_page);
 
-        navigation_view.add(&create_connect_page());
-
         let devices: FactoryVecDeque<DeviceListing> = FactoryVecDeque::builder()
             .launch(preferences_group)
             .forward(sender.input_sender(), |message| match message {
-                DeviceListingOutput::Connect(address) => ConnectDialogInput::Connect(address),
+                DeviceListingOutput::Connect(address, name) => ConnectDialogInput::Connect(address, name),
             });
+
+        let active_device_details = ActiveDeviceDetails::builder().launch_with_broker((), &ACTIVE_DEVICE_DETAILS_BROKER).detach();
+
+        navigation_view.add(active_device_details.widget());
 
         AsyncComponentParts {
             model: ConnectDialog {
                 devices,
                 device_discovery_listener,
+                active_device_details,
                 navigation_view,
             },
             widgets: (),
@@ -136,9 +142,9 @@ impl SimpleAsyncComponent for ConnectDialog {
                     self.devices.guard().remove(index);
                 }
             }
-            ConnectDialogInput::Connect(address) => {
+            ConnectDialogInput::Connect(address, name) => {
                 self.navigation_view.push_by_tag("connect");
-                STATE_MANAGER.send(StateManagerInput::Connect(address));
+                STATE_MANAGER.send(StateManagerInput::Connect(address, name));
             }
         };
     }
@@ -170,16 +176,4 @@ fn create_scan_page() -> (NavigationPage, PreferencesGroup) {
             .build(),
         preference_group,
     )
-}
-
-fn create_connect_page() -> NavigationPage {
-    let container = ToolbarView::builder().build();
-    container.add_top_bar(&HeaderBar::builder().show_back_button(false).build());
-    container.set_content(Some(&Label::new(Some("Hello"))));
-    NavigationPage::builder()
-        .title("Device details")
-        .can_pop(false)
-        .tag("connect")
-        .child(&container)
-        .build()
 }

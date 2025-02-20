@@ -14,7 +14,7 @@ pub struct DeviceListing {
 
 #[derive(Debug)]
 pub enum DeviceListingOutput {
-    Connect(Address),
+    Connect(Address, String),
 }
 
 impl FactoryComponent for DeviceListing {
@@ -60,8 +60,10 @@ impl FactoryComponent for DeviceListing {
             sender,
             #[strong(rename_to=address)]
             self.device.address,
+            #[strong(rename_to=name)]
+            self.device.name,
             move |_| {
-                let _ = sender.output(DeviceListingOutput::Connect(address));
+                let _ = sender.output(DeviceListingOutput::Connect(address, name.clone()));
             }
         ));
     }

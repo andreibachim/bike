@@ -1,5 +1,6 @@
 use crate::{
-    bluetooth_error::DeviceConnectionError, BluetoothError, BluetoothStatus, ConnectedDevice, Device, DeviceDiscoveryEvent
+    bluetooth_error::DeviceConnectionError, BluetoothError, BluetoothStatus, ConnectedDevice,
+    Device, DeviceDiscoveryEvent,
 };
 use bluer::{
     AdapterEvent::{DeviceAdded, DeviceRemoved, PropertyChanged},
@@ -94,31 +95,53 @@ impl BikeBt {
         }
     }
 
-    pub async fn connect(&self, address: Address) -> Result<ConnectedDevice, DeviceConnectionError> {
+    pub async fn connect(
+        &self,
+        address: Address,
+    ) -> Result<ConnectedDevice, DeviceConnectionError> {
         let device = self
             .adapter
             .device(address)
             .map_err(|error| DeviceConnectionError::new(error.message))?;
-        device
-            .set_trusted(true)
+
+        if !device
+            .is_trusted()
             .await
-            .map_err(|error| DeviceConnectionError::new(error.message))?;
-        device
-            .pair()
+            .map_err(|e| DeviceConnectionError::new(e.message))?
+        {
+            device
+                .set_trusted(true)
+                .await
+                .map_err(|e| DeviceConnectionError::new(e.message))?;
+        }
+
+        if !device
+            .is_paired()
             .await
-            .map_err(|error| DeviceConnectionError::new(error.message))?;
-        //device
-        //    .uuids()
-        //    .await
-        //    .map_err(|error| DeviceConnectionError::new(error.message))?
-        //    .iter()
-        //    .for_each(|uuid| {
-        //        println!("UUID: {:#?}", uuid);
-        //    });
-        device
-            .connect()
+            .map_err(|error| DeviceConnectionError::new(error.message))?
+        {
+            device
+                .pair()
+                .await
+                .map_err(|error| DeviceConnectionError::new(error.message))?;
+        }
+
+        if !device
+            .is_connected()
             .await
-            .map_err(|error| DeviceConnectionError::new(error.message))?;
-        Ok(ConnectedDevice::new(device))
+            .map_err(|e| DeviceConnectionError::new(e.message))?
+        {
+            device
+                .connect()
+                .await
+                .map_err(|error| DeviceConnectionError::new(error.message))?;
+        }
+
+        let name = device
+            .name()
+            .await
+            .map_err(|error| DeviceConnectionError::new(error.message))?
+            .ok_or(DeviceConnectionError::new("Device has no name".to_string()))?;
+        Ok(ConnectedDevice::new(device, name))
     }
 }

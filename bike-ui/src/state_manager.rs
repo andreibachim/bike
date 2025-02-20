@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use crate::components::bluetooth_button::{
-    button::{AdapterStateInput, ADAPTER_STATE_BROKER},
-    device_discovery_listener::{DeviceDiscoveryEvent, DEVICE_DISCOVER_BROKER},
+use crate::components::active_device_details::{
+    ActiveDeviceDetailsInput, ACTIVE_DEVICE_DETAILS_BROKER,
 };
-use bike_bt::Address;
+use crate::components::bluetooth_button::button::{AdapterStateInput, ADAPTER_STATE_BROKER};
+use crate::components::connect_dialog::{DeviceDiscoveryEvent, DEVICE_DISCOVER_BROKER};
+use bike_bt::{Address, BluetoothStatus, ConnectedDevice};
 use futures::StreamExt;
 use relm4::{
     gtk::glib::JoinHandle,
@@ -14,6 +15,7 @@ use relm4::{
 
 pub struct StateManager {
     bike_bt: Arc<Option<bike_bt::BikeBt>>,
+    connected_device: Option<ConnectedDevice>,
     scan_handler: Option<JoinHandle<()>>,
 }
 
@@ -22,7 +24,7 @@ pub enum StateManagerInput {
     RegisterAdapterListener,
     StartScanningForDevices,
     StopScanningForDevices,
-    Connect(Address),
+    Connect(Address, String),
 }
 
 impl SimpleAsyncComponent for StateManager {
@@ -43,6 +45,7 @@ impl SimpleAsyncComponent for StateManager {
         AsyncComponentParts {
             model: StateManager {
                 bike_bt: Arc::new(bike_bt),
+                connected_device: None,
                 scan_handler: None,
             },
             widgets: (),
@@ -105,20 +108,23 @@ impl SimpleAsyncComponent for StateManager {
             StateManagerInput::StopScanningForDevices => {
                 self.scan_handler.take().inspect(|handler| handler.abort());
             }
-            StateManagerInput::Connect(address) => {
+            StateManagerInput::Connect(address, name) => {
+                ACTIVE_DEVICE_DETAILS_BROKER.send(ActiveDeviceDetailsInput::SetName(name));
                 if let Some(bike_bt) = self.bike_bt.as_ref() {
                     match bike_bt.connect(address).await {
                         Ok(connected_device) => {
-                            println!("{:#?}", connected_device);
-                        },
+                            self.connected_device = Some(connected_device);
+                            ADAPTER_STATE_BROKER
+                                .send(AdapterStateInput::ChangeStatus(BluetoothStatus::Connected));
+                            ACTIVE_DEVICE_DETAILS_BROKER.send(ActiveDeviceDetailsInput::SetConnected);
+                        }
                         Err(error) => {
                             eprintln!("Could not connect to device. Error: {error}");
                             todo!("Implement error logic")
-                        },
+                        }
                     }
                 }
             }
-
         }
     }
 }

@@ -1,17 +1,12 @@
 use bike_bt::BluetoothStatus;
 use relm4::{
-    adw::prelude::AdwDialogExt,
-    gtk::{
-        glib::clone,
-        prelude::{ButtonExt, WidgetExt},
-    },
-    prelude::{AsyncComponent, AsyncComponentController, AsyncController},
-    Component, ComponentParts, MessageBroker, RelmWidgetExt,
+    adw::prelude::AdwDialogExt, gtk::{glib::clone, 
+        prelude::{ButtonExt, WidgetExt}}, prelude::{AsyncComponent, AsyncComponentController, AsyncController}, Component, ComponentParts, MessageBroker, RelmWidgetExt
 };
 
 use crate::state_manager::StateManagerInput;
 
-use super::ConnectDialog;
+use crate::components::connect_dialog::ConnectDialog;
 
 #[derive(Debug)]
 pub enum AdapterStateInput {
