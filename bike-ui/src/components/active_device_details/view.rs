@@ -3,12 +3,15 @@ use relm4::{
         prelude::{ActionRowExt, NavigationPageExt, PreferencesGroupExt},
         ActionRow, HeaderBar, NavigationPage, PreferencesGroup, Spinner, ToolbarView,
     },
-    gtk::{Button, CenterBox, Image},
+    gtk::{glib::clone, prelude::ButtonExt, Button, CenterBox, Image},
     Component, ComponentParts, MessageBroker,
 };
 
+use crate::state_manager::StateManagerInput;
+
 pub struct ActiveDeviceDetails {
     name: Option<String>,
+    connected: bool,
 }
 
 pub static ACTIVE_DEVICE_DETAILS_BROKER: MessageBroker<ActiveDeviceDetailsInput> =
@@ -20,6 +23,12 @@ pub enum ActiveDeviceDetailsInput {
     SetConnected,
 }
 
+#[derive(Debug)]
+pub enum ActiveDeviceDetailsOutput {
+    CloseDialog,
+    GoBack,
+}
+
 pub struct ActiveDeviceDetailsWidgets {
     root: NavigationPage,
     preferences_group: PreferencesGroup,
@@ -28,7 +37,7 @@ pub struct ActiveDeviceDetailsWidgets {
 impl Component for ActiveDeviceDetails {
     type CommandOutput = ();
     type Input = ActiveDeviceDetailsInput;
-    type Output = ();
+    type Output = ActiveDeviceDetailsOutput;
     type Init = ();
     type Root = NavigationPage;
     type Widgets = ActiveDeviceDetailsWidgets;
@@ -44,7 +53,7 @@ impl Component for ActiveDeviceDetails {
     fn init(
         _init: Self::Init,
         root: Self::Root,
-        _sender: relm4::ComponentSender<Self>,
+        sender: relm4::ComponentSender<Self>,
     ) -> relm4::ComponentParts<Self> {
         let container = ToolbarView::builder().build();
         container.add_top_bar(&HeaderBar::builder().show_back_button(false).build());
@@ -83,20 +92,59 @@ impl Component for ActiveDeviceDetails {
             .orientation(relm4::gtk::Orientation::Vertical)
             .margin_end(50)
             .margin_start(50)
-            .margin_top(50)
+            .margin_top(0)
             .margin_bottom(50)
             .build();
         center_container.set_center_widget(Some(&preferences_group));
         container.set_content(Some(&center_container));
 
         root.set_child(Some(&container));
-        center_container.set_end_widget(Some(&Button::with_label("Hello")));
+
+        //Set control buttons
+        let controls = CenterBox::builder().build();
+
+        let disconnect_button = Button::builder()
+            .css_classes(["destructive-action"])
+            .label("Disconnect")
+            .build();
+        disconnect_button.connect_clicked(clone!(
+            #[strong]
+            sender,
+            move |_| {
+                sender.output(ActiveDeviceDetailsOutput::GoBack).unwrap();
+                crate::brokers::STATE_MANAGER.send(StateManagerInput::Disconnect);
+            }
+        ));
+
+        controls.set_start_widget(Some(&disconnect_button));
+
+        let ride_button = Button::builder()
+            .css_classes(["suggested-action"])
+            .label("Let's Ride")
+            .build();
+        ride_button.connect_clicked(clone!(
+            #[strong]
+            sender,
+            move |_| {
+                sender
+                    .output(ActiveDeviceDetailsOutput::CloseDialog)
+                    .unwrap();
+            }
+        ));
+        controls.set_end_widget(Some(&ride_button));
+
+        center_container.set_end_widget(Some(&controls));
+
         let widgets = ActiveDeviceDetailsWidgets {
             root,
             preferences_group,
         };
+
         ComponentParts {
-            model: Self { name: None },
+            model: Self {
+                name: None,
+                connected: false,
+            },
             widgets,
         }
     }
@@ -120,13 +168,15 @@ impl Component for ActiveDeviceDetails {
                 .clone()
                 .unwrap_or("Device placeholder name".to_string()),
         );
-        widgets.preferences_group.set_description(Some("Connected"));
-        widgets.preferences_group.set_header_suffix(Some(
-            &Image::builder()
-                .icon_size(relm4::gtk::IconSize::Large)
-                .css_classes(["success"])
-                .icon_name("checkbox-checked")
-                .build(),
-        ));
+        if self.connected {
+            widgets.preferences_group.set_description(Some("Connected"));
+            widgets.preferences_group.set_header_suffix(Some(
+                &Image::builder()
+                    .icon_size(relm4::gtk::IconSize::Large)
+                    .css_classes(["success"])
+                    .icon_name("checkbox-checked")
+                    .build(),
+            ));
+        }
     }
 }

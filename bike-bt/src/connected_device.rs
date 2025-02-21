@@ -6,9 +6,14 @@ pub struct ConnectedDevice {
 
 impl ConnectedDevice {
     pub fn new(device: bluer::Device, name: String) -> Self {
-        Self { 
-            device,
-            name
+        Self { device, name }
+    }
+
+    pub async fn disconnect(&self) -> Result<(), ()> {
+        if self.device.is_connected().await.map_err(|_| ())? {
+            self.device.disconnect().await.map_err(|_| ())
+        } else {
+            Ok(())
         }
     }
 }

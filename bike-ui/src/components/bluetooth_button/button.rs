@@ -1,7 +1,11 @@
 use bike_bt::BluetoothStatus;
 use relm4::{
-    adw::prelude::AdwDialogExt, gtk::{glib::clone, 
-        prelude::{ButtonExt, WidgetExt}}, prelude::{AsyncComponent, AsyncComponentController, AsyncController}, Component, ComponentParts, MessageBroker, RelmWidgetExt
+    adw::prelude::AdwDialogExt,
+    gtk::{
+        glib::clone,
+        prelude::{ButtonExt, WidgetExt},
+    },
+    Component, ComponentController, ComponentParts, Controller, MessageBroker, RelmWidgetExt,
 };
 
 use crate::state_manager::StateManagerInput;
@@ -18,7 +22,7 @@ pub static ADAPTER_STATE_BROKER: MessageBroker<AdapterStateInput> = MessageBroke
 pub struct BluetoothButton {
     status: BluetoothStatus,
     #[allow(dead_code)]
-    connect_dialog: AsyncController<ConnectDialog>,
+    connect_dialog: Controller<ConnectDialog>,
 }
 
 pub struct BluetoothStatusWidgets {

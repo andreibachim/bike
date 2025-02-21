@@ -134,8 +134,7 @@ impl BikeBt {
             Some(uuids_list) => {
                 for uuid in uuids_list {
                     match device.connect_profile(&uuid).await {
-                        Ok(_) => {
-                        }
+                        Ok(_) => {}
                         Err(error) => {
                             eprintln!("Could not connect to profile: {uuid}");
                             eprintln!("Error: {error}");
@@ -146,6 +145,16 @@ impl BikeBt {
             None => {
                 eprintln!("The selected device has no profiles");
             }
+        }
+
+        if !device
+            .is_connected()
+            .await
+            .map_err(|e| DeviceConnectionError::new(e.message))?
+        {
+            return Err(DeviceConnectionError::new(
+                "Device connection was not successful".to_string(),
+            ));
         }
 
         let name = device

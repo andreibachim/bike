@@ -25,6 +25,7 @@ pub enum StateManagerInput {
     StartScanningForDevices,
     StopScanningForDevices,
     Connect(Address, String),
+    Disconnect,
 }
 
 impl SimpleAsyncComponent for StateManager {
@@ -116,11 +117,24 @@ impl SimpleAsyncComponent for StateManager {
                             self.connected_device = Some(connected_device);
                             ADAPTER_STATE_BROKER
                                 .send(AdapterStateInput::ChangeStatus(BluetoothStatus::Connected));
-                            ACTIVE_DEVICE_DETAILS_BROKER.send(ActiveDeviceDetailsInput::SetConnected);
+                            ACTIVE_DEVICE_DETAILS_BROKER
+                                .send(ActiveDeviceDetailsInput::SetConnected);
                         }
                         Err(error) => {
                             eprintln!("Could not connect to device. Error: {error}");
                             todo!("Implement error logic")
+                        }
+                    }
+                }
+            }
+            StateManagerInput::Disconnect => {
+                if let Some(connected_device) = &self.connected_device {
+                    match connected_device.disconnect().await {
+                        Ok(_) => ADAPTER_STATE_BROKER.send(AdapterStateInput::ChangeStatus(
+                            BluetoothStatus::Disconnected,
+                        )),
+                        Err(_) => {
+                            eprintln!("Could not disconnect from device.")
                         }
                     }
                 }

@@ -4,18 +4,22 @@ use bike_bt::{Address, Device};
 use relm4::{
     adw::{
         prelude::{AdwDialogExt, PreferencesPageExt},
-        HeaderBar, NavigationPage, NavigationView, PreferencesGroup, PreferencesPage, ToolbarView,
+        Dialog, HeaderBar, NavigationPage, NavigationView, PreferencesGroup, PreferencesPage,
+        ToolbarView,
     },
     gtk::{
         glib::{clone, timeout_future},
         prelude::WidgetExt,
     },
-    prelude::{AsyncComponentParts, FactoryVecDeque, SimpleAsyncComponent},
-    Component, ComponentController, Controller,
+    prelude::FactoryVecDeque,
+    spawn_local, Component, ComponentController, ComponentParts, Controller, SimpleComponent,
 };
 
 use crate::{
-    brokers::STATE_MANAGER, components::active_device_details::{ActiveDeviceDetails, ACTIVE_DEVICE_DETAILS_BROKER},
+    brokers::STATE_MANAGER,
+    components::active_device_details::{
+        ActiveDeviceDetails, ActiveDeviceDetailsOutput, ACTIVE_DEVICE_DETAILS_BROKER,
+    },
     state_manager::StateManagerInput,
 };
 
@@ -32,6 +36,7 @@ pub struct ConnectDialog {
     navigation_view: NavigationView,
     #[allow(dead_code)]
     active_device_details: Controller<ActiveDeviceDetails>,
+    root: Dialog,
 }
 
 #[derive(Debug)]
@@ -41,9 +46,11 @@ pub enum ConnectDialogInput {
     DeviceAdded(Device),
     DeviceRemoved(Address),
     Connect(Address, String),
+    Close,
+    GoBack,
 }
 
-impl SimpleAsyncComponent for ConnectDialog {
+impl SimpleComponent for ConnectDialog {
     type Input = ConnectDialogInput;
     type Output = ();
     type Init = ();
@@ -59,11 +66,11 @@ impl SimpleAsyncComponent for ConnectDialog {
             .build()
     }
 
-    async fn init(
+    fn init(
         _init: Self::Init,
         root: Self::Root,
-        sender: relm4::AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self> {
+        sender: relm4::ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         root.connect_realize(clone!(
             #[strong]
             sender,
@@ -96,24 +103,33 @@ impl SimpleAsyncComponent for ConnectDialog {
         let devices: FactoryVecDeque<DeviceListing> = FactoryVecDeque::builder()
             .launch(preferences_group)
             .forward(sender.input_sender(), |message| match message {
-                DeviceListingOutput::Connect(address, name) => ConnectDialogInput::Connect(address, name),
+                DeviceListingOutput::Connect(address, name) => {
+                    ConnectDialogInput::Connect(address, name)
+                }
             });
 
-        let active_device_details = ActiveDeviceDetails::builder().launch_with_broker((), &ACTIVE_DEVICE_DETAILS_BROKER).detach();
+        let active_device_details = ActiveDeviceDetails::builder()
+            .launch_with_broker((), &ACTIVE_DEVICE_DETAILS_BROKER)
+            .forward(sender.input_sender(), |message| match message {
+                ActiveDeviceDetailsOutput::CloseDialog => ConnectDialogInput::Close,
+                ActiveDeviceDetailsOutput::GoBack => ConnectDialogInput::GoBack,
+            });
 
         navigation_view.add(active_device_details.widget());
 
-        AsyncComponentParts {
+        ComponentParts {
             model: ConnectDialog {
                 devices,
                 device_discovery_listener,
                 active_device_details,
                 navigation_view,
+                root,
             },
             widgets: (),
         }
     }
-    async fn update(&mut self, message: Self::Input, _sender: relm4::AsyncComponentSender<Self>) {
+
+    fn update(&mut self, message: Self::Input, _sender: relm4::ComponentSender<Self>) {
         match message {
             ConnectDialogInput::StartScanning => {
                 self.devices.guard().clear();
@@ -121,8 +137,11 @@ impl SimpleAsyncComponent for ConnectDialog {
             }
             ConnectDialogInput::StopScanning => {
                 crate::brokers::STATE_MANAGER.send(StateManagerInput::StopScanningForDevices);
-                timeout_future(Duration::from_millis(200)).await;
-                self.navigation_view.pop_to_tag("scan");
+                let nav_view_clone = self.navigation_view.clone();
+                spawn_local(async move {
+                    timeout_future(Duration::from_millis(200)).await;
+                    nav_view_clone.pop_to_tag("scan");
+                });
             }
             ConnectDialogInput::DeviceAdded(device) => {
                 if !self
@@ -145,6 +164,12 @@ impl SimpleAsyncComponent for ConnectDialog {
             ConnectDialogInput::Connect(address, name) => {
                 self.navigation_view.push_by_tag("connect");
                 STATE_MANAGER.send(StateManagerInput::Connect(address, name));
+            }
+            ConnectDialogInput::Close => {
+                self.root.close();
+            }
+            ConnectDialogInput::GoBack => {
+                self.navigation_view.pop_to_tag("scan");
             }
         };
     }
