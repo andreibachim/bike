@@ -3,7 +3,7 @@ use relm4::{
         prelude::{ActionRowExt, NavigationPageExt, PreferencesGroupExt},
         ActionRow, HeaderBar, NavigationPage, PreferencesGroup, Spinner, ToolbarView,
     },
-    gtk::{ Button, CenterBox, Image},
+    gtk::{Button, CenterBox, Image},
     Component, ComponentParts, MessageBroker,
 };
 

@@ -1,4 +1,4 @@
-mod active_device_details;
-pub use active_device_details::ActiveDeviceDetails;
-pub use active_device_details::ActiveDeviceDetailsInput;
-pub use active_device_details::ACTIVE_DEVICE_DETAILS_BROKER;
+mod view;
+pub use view::ActiveDeviceDetails;
+pub use view::ActiveDeviceDetailsInput;
+pub use view::ACTIVE_DEVICE_DETAILS_BROKER;

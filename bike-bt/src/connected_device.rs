@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct ConnectedDevice {
-    device: bluer::Device,
+    pub device: bluer::Device,
     pub name: String,
 }
 

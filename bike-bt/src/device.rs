@@ -30,7 +30,7 @@ pub enum DeviceDiscoveryEvent {
     DeviceRemoved(Address),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum DeviceSignalStrength {
     NoSignal,
     Weak,

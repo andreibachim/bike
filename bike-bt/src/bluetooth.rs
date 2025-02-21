@@ -105,17 +105,6 @@ impl BikeBt {
             .map_err(|error| DeviceConnectionError::new(error.message))?;
 
         if !device
-            .is_trusted()
-            .await
-            .map_err(|e| DeviceConnectionError::new(e.message))?
-        {
-            device
-                .set_trusted(true)
-                .await
-                .map_err(|e| DeviceConnectionError::new(e.message))?;
-        }
-
-        if !device
             .is_paired()
             .await
             .map_err(|error| DeviceConnectionError::new(error.message))?
@@ -127,14 +116,36 @@ impl BikeBt {
         }
 
         if !device
-            .is_connected()
+            .is_trusted()
             .await
             .map_err(|e| DeviceConnectionError::new(e.message))?
         {
             device
-                .connect()
+                .set_trusted(true)
                 .await
-                .map_err(|error| DeviceConnectionError::new(error.message))?;
+                .map_err(|e| DeviceConnectionError::new(e.message))?;
+        }
+
+        match device
+            .uuids()
+            .await
+            .map_err(|e| DeviceConnectionError::new(e.message))?
+        {
+            Some(uuids_list) => {
+                for uuid in uuids_list {
+                    match device.connect_profile(&uuid).await {
+                        Ok(_) => {
+                        }
+                        Err(error) => {
+                            eprintln!("Could not connect to profile: {uuid}");
+                            eprintln!("Error: {error}");
+                        }
+                    }
+                }
+            }
+            None => {
+                eprintln!("The selected device has no profiles");
+            }
         }
 
         let name = device
