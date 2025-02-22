@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/github/andreibachim/bike/icons/16x16/actions/">
+    <file alias="checkmark-symbolic.svg" preprocess="xml-stripblanks">icons/checkmark-symbolic.svg</file>
+  </gresource>
+</gresources>

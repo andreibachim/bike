@@ -40,7 +40,7 @@ impl FactoryComponent for DeviceListing {
     ) -> Self::Widgets {
         root.add_prefix(
             &relm4::gtk::Image::builder()
-                .icon_name("zoom-in-symbolic")
+                .icon_name("checkmark-symbolic")
                 .build(),
         );
 

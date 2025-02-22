@@ -3,11 +3,15 @@ use relm4::{
         prelude::{ActionRowExt, NavigationPageExt, PreferencesGroupExt},
         ActionRow, HeaderBar, NavigationPage, PreferencesGroup, Spinner, ToolbarView,
     },
-    gtk::{glib::clone, prelude::ButtonExt, Button, CenterBox, Image},
+    gtk::{
+        glib::clone,
+        prelude::{ButtonExt, WidgetExt},
+        Button, CenterBox, Image,
+    },
     Component, ComponentParts, MessageBroker,
 };
 
-use crate::state_manager::StateManagerInput;
+use crate::{brokers::STATE_MANAGER, state_manager::StateManagerInput};
 
 pub struct ActiveDeviceDetails {
     name: Option<String>,
@@ -21,6 +25,7 @@ pub static ACTIVE_DEVICE_DETAILS_BROKER: MessageBroker<ActiveDeviceDetailsInput>
 pub enum ActiveDeviceDetailsInput {
     SetName(String),
     SetConnected,
+    ConnectionFailed,
 }
 
 #[derive(Debug)]
@@ -32,6 +37,8 @@ pub enum ActiveDeviceDetailsOutput {
 pub struct ActiveDeviceDetailsWidgets {
     root: NavigationPage,
     preferences_group: PreferencesGroup,
+    disconnect_button: Button,
+    ride_button: Button,
 }
 
 impl Component for ActiveDeviceDetails {
@@ -57,7 +64,6 @@ impl Component for ActiveDeviceDetails {
     ) -> relm4::ComponentParts<Self> {
         let container = ToolbarView::builder().build();
         container.add_top_bar(&HeaderBar::builder().show_back_button(false).build());
-
         //Create the preferences group
         let preferences_group = PreferencesGroup::builder().build();
         preferences_group.set_title("DEVICE CAPABILITIES");
@@ -105,7 +111,7 @@ impl Component for ActiveDeviceDetails {
 
         let disconnect_button = Button::builder()
             .css_classes(["destructive-action"])
-            .label("Disconnect")
+            .label("Cancel")
             .build();
         disconnect_button.connect_clicked(clone!(
             #[strong]
@@ -119,8 +125,9 @@ impl Component for ActiveDeviceDetails {
         controls.set_start_widget(Some(&disconnect_button));
 
         let ride_button = Button::builder()
+            .sensitive(false)
             .css_classes(["suggested-action"])
-            .label("Let's Ride")
+            .label("Ok")
             .build();
         ride_button.connect_clicked(clone!(
             #[strong]
@@ -138,6 +145,8 @@ impl Component for ActiveDeviceDetails {
         let widgets = ActiveDeviceDetailsWidgets {
             root,
             preferences_group,
+            disconnect_button,
+            ride_button,
         };
 
         ComponentParts {
@@ -152,12 +161,15 @@ impl Component for ActiveDeviceDetails {
     fn update(
         &mut self,
         message: Self::Input,
-        _sender: relm4::ComponentSender<Self>,
+        sender: relm4::ComponentSender<Self>,
         _root: &Self::Root,
     ) {
         match message {
             ActiveDeviceDetailsInput::SetName(name) => self.name = Some(name),
             ActiveDeviceDetailsInput::SetConnected => {}
+            ActiveDeviceDetailsInput::ConnectionFailed => sender
+                .output(ActiveDeviceDetailsOutput::GoBack)
+                .expect("Could not go back"),
         }
     }
 
@@ -174,9 +186,11 @@ impl Component for ActiveDeviceDetails {
                 &Image::builder()
                     .icon_size(relm4::gtk::IconSize::Large)
                     .css_classes(["success"])
-                    .icon_name("checkbox-checked")
+                    .icon_name("checkmark-symbolic")
                     .build(),
             ));
+            widgets.disconnect_button.set_label("Disconnect");
+            widgets.ride_button.set_sensitive(true);
         }
     }
 }

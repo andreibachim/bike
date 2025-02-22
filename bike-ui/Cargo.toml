@@ -10,3 +10,6 @@ futures = { version = "0.3.31" }
 # relm4-components = { version = "0.9.1" }
 # tracker = { version = "0.2.2" }
 bike-bt = { path = "../bike-bt/" }
+
+[build-dependencies]
+glib-build-tools = "0.20.0"

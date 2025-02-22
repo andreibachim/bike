@@ -122,7 +122,7 @@ impl SimpleAsyncComponent for StateManager {
                         }
                         Err(error) => {
                             eprintln!("Could not connect to device. Error: {error}");
-                            todo!("Implement error logic")
+                            ACTIVE_DEVICE_DETAILS_BROKER.send(ActiveDeviceDetailsInput::ConnectionFailed); 
                         }
                     }
                 }
