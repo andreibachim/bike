@@ -26,6 +26,7 @@ pub enum StateManagerInput {
     StopScanningForDevices,
     Connect(Address, String),
     Disconnect,
+    DiscoverGattProfiles,
 }
 
 impl SimpleAsyncComponent for StateManager {
@@ -137,6 +138,11 @@ impl SimpleAsyncComponent for StateManager {
                             eprintln!("Could not disconnect from device.")
                         }
                     }
+                }
+            },
+            StateManagerInput::DiscoverGattProfiles => {
+                if let Some(connected_device) = &self.connected_device {
+                    connected_device.get_gatt_services().await;
                 }
             }
         }

@@ -111,6 +111,7 @@ impl Component for ActiveDeviceDetails {
 
         let disconnect_button = Button::builder()
             .css_classes(["destructive-action"])
+            .width_request(100)
             .label("Cancel")
             .build();
         disconnect_button.connect_clicked(clone!(
@@ -126,6 +127,7 @@ impl Component for ActiveDeviceDetails {
 
         let ride_button = Button::builder()
             .sensitive(false)
+            .width_request(100)
             .css_classes(["suggested-action"])
             .label("Ok")
             .build();
@@ -166,10 +168,16 @@ impl Component for ActiveDeviceDetails {
     ) {
         match message {
             ActiveDeviceDetailsInput::SetName(name) => self.name = Some(name),
-            ActiveDeviceDetailsInput::SetConnected => {}
-            ActiveDeviceDetailsInput::ConnectionFailed => sender
-                .output(ActiveDeviceDetailsOutput::GoBack)
-                .expect("Could not go back"),
+            ActiveDeviceDetailsInput::SetConnected => {
+                self.connected = true;
+                STATE_MANAGER.send(StateManagerInput::DiscoverGattProfiles);
+            }
+            ActiveDeviceDetailsInput::ConnectionFailed => {
+                self.connected = false;
+                sender
+                    .output(ActiveDeviceDetailsOutput::GoBack)
+                    .expect("Could not go back")
+            }
         }
     }
 

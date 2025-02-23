@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use bike_bt::{Address, Device};
 use relm4::{
     adw::{
@@ -7,12 +5,9 @@ use relm4::{
         Dialog, HeaderBar, NavigationPage, NavigationView, PreferencesGroup, PreferencesPage,
         ToolbarView,
     },
-    gtk::{
-        glib::{clone, timeout_future},
-        prelude::WidgetExt,
-    },
+    gtk::{glib::clone, prelude::WidgetExt},
     prelude::FactoryVecDeque,
-    spawn_local, Component, ComponentController, ComponentParts, Controller, SimpleComponent,
+    Component, ComponentController, ComponentParts, Controller, SimpleComponent,
 };
 
 use crate::{
@@ -137,11 +132,11 @@ impl SimpleComponent for ConnectDialog {
             }
             ConnectDialogInput::StopScanning => {
                 crate::brokers::STATE_MANAGER.send(StateManagerInput::StopScanningForDevices);
-                let nav_view_clone = self.navigation_view.clone();
-                spawn_local(async move {
-                    timeout_future(Duration::from_millis(200)).await;
-                    nav_view_clone.pop_to_tag("scan");
-                });
+                //let nav_view_clone = self.navigation_view.clone();
+                //spawn_local(async move {
+                //    timeout_future(Duration::from_millis(200)).await;
+                //    nav_view_clone.pop_to_tag("scan");
+                //});
             }
             ConnectDialogInput::DeviceAdded(device) => {
                 if !self

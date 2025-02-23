@@ -79,7 +79,7 @@ impl Component for BluetoothButton {
         match message {
             AdapterStateInput::ChangeStatus(bluetooth_status) => self.status = bluetooth_status,
             AdapterStateInput::Clicked => match self.status {
-                BluetoothStatus::Disconnected => {
+                BluetoothStatus::Disconnected | BluetoothStatus::Connected => {
                     let widget = self.connect_dialog.widget();
                     let window = root.toplevel_window();
                     widget.present(window.as_ref());

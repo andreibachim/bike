@@ -3,6 +3,7 @@ use crate::{
     Device, DeviceDiscoveryEvent,
 };
 use bluer::{
+    agent::Agent,
     AdapterEvent::{DeviceAdded, DeviceRemoved, PropertyChanged},
     AdapterProperty, Address,
 };
@@ -10,6 +11,8 @@ use futures::{stream::StreamExt, Stream};
 
 pub struct BikeBt {
     adapter: bluer::Adapter,
+    #[allow(dead_code)]
+    agent_handle: bluer::agent::AgentHandle,
     pub device: Option<Device>,
 }
 
@@ -19,12 +22,17 @@ impl BikeBt {
             .await
             .map_err(|_| BluetoothError::NoBluez)?;
 
+        let agent = Agent::default();
+        let agent_handle = session.register_agent(agent).await.unwrap();
+
         let adapter = session
             .default_adapter()
             .await
             .map_err(|_| BluetoothError::NoAdapter)?;
+
         Ok(Self {
             adapter,
+            agent_handle,
             device: None,
         })
     }
@@ -126,26 +134,34 @@ impl BikeBt {
                 .map_err(|e| DeviceConnectionError::new(e.message))?;
         }
 
-        match device
-            .uuids()
+        //match device
+        //    .uuids()
+        //    .await
+        //    .map_err(|e| DeviceConnectionError::new(e.message))?
+        //{
+        //    Some(uuids_list) => {
+        //        for uuid in uuids_list {
+        //            match device.connect_profile(&uuid).await {
+        //                Ok(_) => {
+        //                    println!("Connected to profile: {uuid}");
+        //                }
+        //                Err(error) => {
+        //                    eprintln!("Could not connect to profile: {uuid}");
+        //                    eprintln!("Error: {error}");
+        //                }
+        //            }
+        //        }
+        //    }
+        //    None => {
+        //        eprintln!("The selected device has no profiles");
+        //    }
+        //}
+
+        device
+            .connect()
             .await
-            .map_err(|e| DeviceConnectionError::new(e.message))?
-        {
-            Some(uuids_list) => {
-                for uuid in uuids_list {
-                    match device.connect_profile(&uuid).await {
-                        Ok(_) => {}
-                        Err(error) => {
-                            eprintln!("Could not connect to profile: {uuid}");
-                            eprintln!("Error: {error}");
-                        }
-                    }
-                }
-            }
-            None => {
-                eprintln!("The selected device has no profiles");
-            }
-        }
+            .map_err(|e| DeviceConnectionError::new(e.message))?;
+
 
         if !device
             .is_connected()
