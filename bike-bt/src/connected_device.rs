@@ -18,7 +18,6 @@ impl ConnectedDevice {
     }
 
     pub async fn get_gatt_services(&self) {
-        println!("{}", self.device.is_services_resolved().await.unwrap());
         for service in self.device.services().await.unwrap() {
             println!("{:#?}", service);
         }

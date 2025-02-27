@@ -134,34 +134,16 @@ impl BikeBt {
                 .map_err(|e| DeviceConnectionError::new(e.message))?;
         }
 
-        //match device
-        //    .uuids()
-        //    .await
-        //    .map_err(|e| DeviceConnectionError::new(e.message))?
-        //{
-        //    Some(uuids_list) => {
-        //        for uuid in uuids_list {
-        //            match device.connect_profile(&uuid).await {
-        //                Ok(_) => {
-        //                    println!("Connected to profile: {uuid}");
-        //                }
-        //                Err(error) => {
-        //                    eprintln!("Could not connect to profile: {uuid}");
-        //                    eprintln!("Error: {error}");
-        //                }
-        //            }
-        //        }
-        //    }
-        //    None => {
-        //        eprintln!("The selected device has no profiles");
-        //    }
-        //}
-
-        device
-            .connect()
+        if !device
+            .is_connected()
             .await
-            .map_err(|e| DeviceConnectionError::new(e.message))?;
-
+            .map_err(|e| DeviceConnectionError::new(e.message))?
+        {
+            device
+                .connect()
+                .await
+                .map_err(|e| DeviceConnectionError::new(e.message))?;
+        }
 
         if !device
             .is_connected()
