@@ -17,9 +17,13 @@ impl ConnectedDevice {
         }
     }
 
-    pub async fn get_gatt_services(&self) {
-        for service in self.device.services().await.unwrap() {
-            println!("{:#?}", service);
+    pub async fn get_gatt_services(&self) -> Result<(), ()> {
+        for service in self.device.services().await.map_err(|e| {
+            eprintln!("Could not detect GATT services. Error: {e}");
+            ()
+        })? {
+            println!("{:#?}", service.uuid().await);
         }
+        Ok(())
     }
 }

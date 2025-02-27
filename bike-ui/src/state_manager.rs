@@ -123,7 +123,8 @@ impl SimpleAsyncComponent for StateManager {
                         }
                         Err(error) => {
                             eprintln!("Could not connect to device. Error: {error}");
-                            ACTIVE_DEVICE_DETAILS_BROKER.send(ActiveDeviceDetailsInput::ConnectionFailed); 
+                            ACTIVE_DEVICE_DETAILS_BROKER
+                                .send(ActiveDeviceDetailsInput::ConnectionFailed);
                         }
                     }
                 }
@@ -139,10 +140,15 @@ impl SimpleAsyncComponent for StateManager {
                         }
                     }
                 }
-            },
+            }
             StateManagerInput::DiscoverGattProfiles => {
                 if let Some(connected_device) = &self.connected_device {
-                    connected_device.get_gatt_services().await;
+                    match connected_device.get_gatt_services().await {
+                        Ok(_) => {} //nothing to do
+                        Err(_) => {
+                            todo!("Implement fallback - disconnect device and navigate back")
+                        }
+                    }
                 }
             }
         }
