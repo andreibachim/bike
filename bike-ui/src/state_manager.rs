@@ -132,9 +132,12 @@ impl SimpleAsyncComponent for StateManager {
             StateManagerInput::Disconnect => {
                 if let Some(connected_device) = &self.connected_device {
                     match connected_device.disconnect().await {
-                        Ok(_) => ADAPTER_STATE_BROKER.send(AdapterStateInput::ChangeStatus(
-                            BluetoothStatus::Disconnected,
-                        )),
+                        Ok(_) => {
+                            ADAPTER_STATE_BROKER.send(AdapterStateInput::ChangeStatus(
+                                                    BluetoothStatus::Disconnected,
+                                                ));
+                            self.connected_device = None;
+                        },
                         Err(_) => {
                             eprintln!("Could not disconnect from device.")
                         }

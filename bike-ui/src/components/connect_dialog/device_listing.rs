@@ -4,7 +4,7 @@ use relm4::{
         prelude::{ActionRowExt, PreferencesRowExt},
         ActionRow, Bin, PreferencesGroup,
     },
-    gtk::{glib::clone, Label},
+    gtk::{glib::clone, Image},
     prelude::{DynamicIndex, FactoryComponent},
 };
 
@@ -17,6 +17,10 @@ pub enum DeviceListingOutput {
     Connect(Address, String),
 }
 
+pub struct DeviceListingWidgets {
+    signal_icon: Image,
+}
+
 impl FactoryComponent for DeviceListing {
     type ParentWidget = PreferencesGroup;
     type CommandOutput = ();
@@ -24,7 +28,7 @@ impl FactoryComponent for DeviceListing {
     type Output = DeviceListingOutput;
     type Init = Device;
     type Root = ActionRow;
-    type Widgets = ();
+    type Widgets = DeviceListingWidgets;
     type Index = DynamicIndex;
 
     fn init_root(&self) -> Self::Root {
@@ -46,17 +50,19 @@ impl FactoryComponent for DeviceListing {
 
         root.set_activatable_widget(Some(&Bin::new()));
         root.set_title(&self.device.name);
-        let suffix = Label::builder()
-            .label(if self.device.signal == DeviceSignalStrength::NoSignal {
-                "Not Available"
-            } else {
-                match self.device.status {
-                    DeviceStatus::NotSetUp => "Not Set Up",
-                    DeviceStatus::Paired => "Disconnected",
-                    DeviceStatus::Connected => "Connected",
-                }
+        root.set_subtitle(match self.device.status {
+            DeviceStatus::NotSetUp => "Not Set Up",
+            DeviceStatus::Paired => "Disconnected",
+            DeviceStatus::Connected => "Connected",
+        });
+        let suffix = relm4::gtk::Image::builder()
+            .icon_name(match self.device.signal {
+                DeviceSignalStrength::NoSignal => "network-cellular-offline-symbolic",
+                DeviceSignalStrength::Weak => "network-cellular-signal-weak-symbolic",
+                DeviceSignalStrength::Ok => "network-cellular-signal-ok-symbolic",
+                DeviceSignalStrength::Good => "network-cellular-signal-good-symbolic",
+                DeviceSignalStrength::Full => "network-cellular-signal-excellent-symbolic",
             })
-            .css_classes(["dim-label"])
             .build();
         root.add_suffix(&suffix);
         root.connect_activated(clone!(
@@ -70,6 +76,10 @@ impl FactoryComponent for DeviceListing {
                 let _ = sender.output(DeviceListingOutput::Connect(address, name.clone()));
             }
         ));
+
+        DeviceListingWidgets {
+            signal_icon: suffix,
+        }
     }
 
     fn init_model(
@@ -78,5 +88,15 @@ impl FactoryComponent for DeviceListing {
         _ender: relm4::FactorySender<Self>,
     ) -> Self {
         DeviceListing { device }
+    }
+
+    fn update_view(&self, widgets: &mut Self::Widgets, _sender: relm4::FactorySender<Self>) {
+        widgets.signal_icon.set_icon_name(match self.device.signal {
+            DeviceSignalStrength::NoSignal => Some("network-cellular-offline-symbolic"),
+            DeviceSignalStrength::Weak => Some("network-cellular-signal-weak-symbolic"),
+            DeviceSignalStrength::Ok => Some("network-cellular-signal-ok-symbolic"),
+            DeviceSignalStrength::Good => Some("network-cellular-signal-good-symbolic"),
+            DeviceSignalStrength::Full => Some("network-cellular-signal-excellent-symbolic"),
+        });
     }
 }

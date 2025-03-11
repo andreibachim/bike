@@ -55,7 +55,7 @@ impl BikeBt {
     ) -> Result<impl Stream<Item = DeviceDiscoveryEvent> + use<'_>, BluetoothError> {
         let stream = self
             .adapter
-            .discover_devices()
+            .discover_devices_with_changes()
             .await
             .map_err(|_| BluetoothError::ScanFailed)?
             .filter_map(|itm| async {

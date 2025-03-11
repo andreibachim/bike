@@ -18,12 +18,14 @@ impl ConnectedDevice {
     }
 
     pub async fn get_gatt_services(&self) -> Result<(), ()> {
-        for service in self.device.services().await.map_err(|e| {
-            eprintln!("Could not detect GATT services. Error: {e}");
+        if let Some(services) = self.device.uuids().await.map_err(|e| {
+            eprintln!("Could not detect UUIDs. Error: {e}");
             ()
         })? {
-            println!("{:#?}", service.uuid().await);
-        }
+            for service in services {
+                println!("Service found: {}", service);
+            }
+        };
         Ok(())
     }
 }

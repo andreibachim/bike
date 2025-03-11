@@ -132,11 +132,6 @@ impl SimpleComponent for ConnectDialog {
             }
             ConnectDialogInput::StopScanning => {
                 crate::brokers::STATE_MANAGER.send(StateManagerInput::StopScanningForDevices);
-                //let nav_view_clone = self.navigation_view.clone();
-                //spawn_local(async move {
-                //    timeout_future(Duration::from_millis(200)).await;
-                //    nav_view_clone.pop_to_tag("scan");
-                //});
             }
             ConnectDialogInput::DeviceAdded(device) => {
                 if !self
@@ -145,6 +140,14 @@ impl SimpleComponent for ConnectDialog {
                     .any(|listing| listing.device.address == device.address)
                 {
                     self.devices.guard().push_back(device);
+                } else {
+                    let index = self
+                        .devices
+                        .iter()
+                        .position(|listing| listing.device.address == device.address);
+                    if let Some(index) = index {
+                        self.devices.guard().get_mut(index).unwrap().device = device;
+                    }
                 }
             }
             ConnectDialogInput::DeviceRemoved(address) => {
