@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="Window" parent="AdwApplicationWindow">
+    <property name="width-request">1000</property>
+    <property name="height-request">700</property>
+    <property name="title" translatable="yes">Bike</property>
+    <child type="content">
+      <object class="AdwToolbarView">
+        <child type="top">
+          <object class="AdwHeaderBar">
+            <property name="show-title">false</property>
+            <child type="end">
+              <object class="GtkButton">
+                <property name="icon-name">bluetooth-disconnected-symbolic</property>
+                <signal name="clicked" handler="open_connect_dialog"/>
+              </object>
+            </child>
+          </object>
+        </child>
+        <property name="content">
+          <object class="GtkLabel">
+            <property name="label">Hello, world!</property>
+          </object>
+        </property>
+      </object>
+    </child>
+  </template>
+</interface>
