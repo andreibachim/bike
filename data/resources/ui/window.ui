@@ -12,7 +12,7 @@
             <child type="end">
               <object class="GtkButton">
                 <property name="icon-name">bluetooth-disconnected-symbolic</property>
-                <signal name="clicked" handler="open_connect_dialog"/>
+                <signal name="clicked" handler="open_connect_dialog" swapped="true" />
               </object>
             </child>
           </object>

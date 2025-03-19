@@ -5,8 +5,7 @@ mod imp {
     use adw::{prelude::AdwDialogExt, subclass::prelude::*};
     use gtk::{
         CompositeTemplate,
-        glib::{self, subclass::InitializingObject, types::StaticType},
-        prelude::WidgetExt,
+        glib::{self, subclass::InitializingObject},
         subclass::{prelude::ApplicationWindowImpl, widget::WidgetImpl, window::WindowImpl},
     };
 
@@ -31,10 +30,9 @@ mod imp {
     #[gtk::template_callbacks]
     impl WindowPrivate {
         #[template_callback]
-        fn open_connect_dialog(button: gtk::Button) {
+        fn open_connect_dialog(window: gtk::Window) {
             let connect_dialog = ConnectDialog::new();
-            let window = button.ancestor(adw::ApplicationWindow::static_type());
-            connect_dialog.present(window.as_ref());
+            connect_dialog.present(Some(&window));
         }
     }
 
