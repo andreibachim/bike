@@ -5,6 +5,11 @@ use gtk::{
     glib::{Variant, VariantTy, variant::ToVariant},
 };
 
+const BLUEZ_BUS_NAME: Option<&str> = Some("org.bluez");
+const ADAPTER_OBJECT_PATH: Option<&str> = Some("/org/bluez/hci0");
+const ADAPTER_INTERFACE: Option<&str> = Some("org.bluez.Adapter1");
+const PROPERTIES_INTERFACE: Option<&str> = Some("org.freedesktop.DBus.Properties");
+
 pub struct BluetoothService {
     connection: Result<DBusConnection, gtk::glib::Error>,
 }
@@ -12,27 +17,6 @@ pub struct BluetoothService {
 impl BluetoothService {
     pub fn new() -> Self {
         let connection = gtk::gio::bus_get_sync(BusType::System, Cancellable::NONE);
-        //let proxy = DBusProxy::for_bus_sync(
-        //    gtk::gio::BusType::System,
-        //    DBusProxyFlags::NONE,
-        //    None,
-        //    "org.bluez",
-        //    "/org/bluez/hci0",
-        //    "org.freedesktop.DBus.Properties",
-        //    Cancellable::NONE,
-        //)
-        //.expect("Could not create DBus adapter proxy object");
-        //
-        //let powered = proxy.call_sync(
-        //    "Get",
-        //    Some(&("org.bluez.Adapter1", "Powered").to_variant()),
-        //    DBusCallFlags::NONE,
-        //    300,
-        //    Cancellable::NONE,
-        //);
-
-        //log::debug!("{:#?}", powered);
-
         Self { connection }
     }
 
@@ -41,12 +25,25 @@ impl BluetoothService {
     }
 
     pub fn is_adapter_powered(&self) -> Result<bool, gtk::glib::Error> {
+        if !self.is_valid() {
+            return Err(DBusError::new_for_dbus_error(
+                "No bluetooth connection",
+                "Bluetooth connection is not active",
+            ));
+        }
+
         let powered_variant = &self.connection.clone()?.call_sync(
-            Some("org.bluez"),
-            "/org/bluez/hci0",
-            "org.freedesktop.DBus.Properties",
+            BLUEZ_BUS_NAME,
+            ADAPTER_OBJECT_PATH.expect("Adapter object path is not defined"),
+            PROPERTIES_INTERFACE.expect("Properties interface name is not defined"),
             "Get",
-            Some(&("org.bluez.Adapter1", "Powered").to_variant()),
+            Some(
+                &(
+                    ADAPTER_INTERFACE.expect("Adapter interface name is not defined"),
+                    "Powered",
+                )
+                    .to_variant(),
+            ),
             Some(VariantTy::ANY),
             DBusCallFlags::NONE,
             300,
@@ -65,13 +62,16 @@ impl BluetoothService {
     where
         F: Fn(bool) + 'static,
     {
+        if !self.is_valid() {
+            return;
+        };
         if let Ok(connection) = &self.connection {
             connection.signal_subscribe(
-                Some("org.bluez"),
-                Some("org.freedesktop.DBus.Properties"),
+                BLUEZ_BUS_NAME,
+                PROPERTIES_INTERFACE,
                 Some("PropertiesChanged"),
-                Some("/org/bluez/hci0"),
-                Some("org.bluez.Adapter1"),
+                ADAPTER_OBJECT_PATH,
+                ADAPTER_INTERFACE,
                 DBusSignalFlags::NONE,
                 move |_, _, _, _, _, value| {
                     let _ = value
