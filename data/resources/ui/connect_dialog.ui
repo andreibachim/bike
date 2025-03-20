@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="ConnectDialog" parent="AdwDialog">
-    <signal name="closed" handler="dialog_closed"/>
+    <signal name="closed" handler="dialog_closed" />
     <property name="content-height">500</property>
     <property name="content-width">600</property>
     <child>
@@ -28,6 +28,19 @@
                         <property name="header-suffix">
                           <object class="AdwSpinner" />
                         </property>
+                        <child>
+                          <object class="GtkListBox" id="device_list">
+                            <property name="selection-mode">none</property>
+                            <style>
+                              <class name="boxed-list" />
+                            </style>
+                            <child>
+                              <object class="AdwActionRow">
+                                <property name="title">Hello</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
                       </object>
                     </child>
                   </object>

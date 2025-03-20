@@ -10,9 +10,15 @@ mod imp {
     };
     use log::debug;
 
+    use crate::bluetooth::Device;
+
     #[derive(Default, CompositeTemplate)]
     #[template(resource = "/io/github/andreibachim/bike/ui/connect_dialog.ui")]
-    pub struct ConnectDialogPrivate {}
+    pub struct ConnectDialogPrivate {
+        #[template_child]
+        device_list: TemplateChild<gtk::ListBox>,
+        available_devices: Vec<Device>,
+    }
 
     #[glib::object_subclass]
     impl ObjectSubclass for ConnectDialogPrivate {
@@ -45,12 +51,19 @@ mod imp {
             Self::stop_scanning();
         }
 
-        fn stop_scanning() {
-            debug!("Stopped scanning for new devices");
-        }
+        fn stop_scanning() {}
     }
 
-    impl ObjectImpl for ConnectDialogPrivate {}
+    impl ObjectImpl for ConnectDialogPrivate {
+        fn constructed(&self) {
+            self.parent_constructed();
+            let store = gtk::gio::ListStore::new::<Device>();
+            store.extend_from_slice(&self.available_devices);
+            self.device_list.bind_model(Some(&store), |_| {
+                gtk::Label::new(Some("Hello, world")).into()
+            });
+        }
+    }
     impl WidgetImpl for ConnectDialogPrivate {}
     impl AdwDialogImpl for ConnectDialogPrivate {}
 }

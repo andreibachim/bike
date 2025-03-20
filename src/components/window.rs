@@ -1,8 +1,8 @@
 use gtk::glib::Object;
 
 mod imp {
-    use crate::components::connect_dialog::ConnectDialog;
-    use adw::{prelude::AdwDialogExt, subclass::prelude::*};
+    use crate::BLUETOOTH;
+    use adw::subclass::prelude::*;
     use gtk::{
         CompositeTemplate,
         glib::{self, subclass::InitializingObject},
@@ -11,7 +11,10 @@ mod imp {
 
     #[derive(CompositeTemplate, Default)]
     #[template(resource = "/io/github/andreibachim/bike/ui/window.ui")]
-    pub struct WindowPrivate {}
+    pub struct WindowPrivate {
+        #[template_child]
+        missing_bluetooth_banner: TemplateChild<adw::Banner>,
+    }
 
     #[glib::object_subclass]
     impl ObjectSubclass for WindowPrivate {
@@ -20,23 +23,19 @@ mod imp {
         type ParentType = adw::ApplicationWindow;
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
-            klass.bind_template_callbacks();
         }
         fn instance_init(obj: &InitializingObject<Self>) {
             obj.init_template();
         }
     }
 
-    #[gtk::template_callbacks]
-    impl WindowPrivate {
-        #[template_callback]
-        fn open_connect_dialog(window: gtk::Window) {
-            let connect_dialog = ConnectDialog::new();
-            connect_dialog.present(Some(&window));
+    impl ObjectImpl for WindowPrivate {
+        fn constructed(&self) {
+            self.parent_constructed();
+            self.missing_bluetooth_banner
+                .set_revealed(!BLUETOOTH.is_valid());
         }
     }
-
-    impl ObjectImpl for WindowPrivate {}
     impl WidgetImpl for WindowPrivate {}
     impl WindowImpl for WindowPrivate {}
     impl ApplicationWindowImpl for WindowPrivate {}
