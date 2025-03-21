@@ -4,30 +4,35 @@ use gtk::{
     gio::{BusType, Cancellable, DBusCallFlags, DBusConnection, DBusError, DBusSignalFlags},
     glib::{
         Variant, VariantTy,
-        variant::{ObjectPath, ToVariant},
+        variant::{FromVariant, ObjectPath, ToVariant},
     },
 };
 
 const BLUEZ_BUS_NAME: Option<&str> = Some("org.bluez");
-const ADAPTER_OBJECT_PATH: &str = "/org/bluez/hci0";
 const ADAPTER_INTERFACE: &str = "org.bluez.Adapter1";
 const PROPERTIES_INTERFACE: &str = "org.freedesktop.DBus.Properties";
+const OBJECT_MANAGER_INTERFACE: &str = "org.freedesktop.DBus.ObjectManager";
 
 pub struct BluetoothService {
     connection: Result<DBusConnection, gtk::glib::Error>,
-    adapter_object_path: Option<String>,
+    adapter_index: usize,
+    adapters: Vec<ObjectPath>,
 }
 
 impl BluetoothService {
     pub fn new() -> Self {
         let connection = gtk::gio::bus_get_sync(BusType::System, Cancellable::NONE);
-        let mut slf = Self { connection, adapter_object_path: None };
-        slf.adapter_object_path = slf.get_adapters().first().map(|object_path| object_path.to_string());
+        let mut slf = Self {
+            connection,
+            adapter_index: 0,
+            adapters: vec![],
+        };
+        slf.adapters.append(&mut slf.get_adapters());
         slf
     }
 
     pub fn is_valid(&self) -> bool {
-        self.connection.is_ok() && self.adapter_object_path.is_some()
+        self.connection.is_ok() && !self.adapters.is_empty()
     }
 
     pub fn is_adapter_powered(&self) -> Result<bool, gtk::glib::Error> {
@@ -40,7 +45,9 @@ impl BluetoothService {
 
         let powered_variant = &self.connection.clone()?.call_sync(
             BLUEZ_BUS_NAME,
-            ADAPTER_OBJECT_PATH,
+            self.adapters
+                .get(self.adapter_index)
+                .expect("At least one adapter is needed"),
             PROPERTIES_INTERFACE,
             "Get",
             Some(&(ADAPTER_INTERFACE, "Powered").to_variant()),
@@ -70,7 +77,9 @@ impl BluetoothService {
                 BLUEZ_BUS_NAME,
                 Some(PROPERTIES_INTERFACE),
                 Some("PropertiesChanged"),
-                Some(ADAPTER_OBJECT_PATH),
+                self.adapters
+                    .get(self.adapter_index)
+                    .map(|object_path| object_path.as_str()),
                 Some(ADAPTER_INTERFACE),
                 DBusSignalFlags::NONE,
                 move |_, _, _, _, _, value| {
@@ -94,7 +103,7 @@ impl BluetoothService {
                 .call_sync(
                     BLUEZ_BUS_NAME,
                     "/",
-                    "org.freedesktop.DBus.ObjectManager",
+                    OBJECT_MANAGER_INTERFACE,
                     "GetManagedObjects",
                     None,
                     Some(VariantTy::ANY),
@@ -118,6 +127,98 @@ impl BluetoothService {
                 .collect()
         } else {
             vec![]
+        }
+    }
+
+    pub fn start_device_monitoring(&self) {
+        if let Ok(connection) = &self.connection {
+            //(oa{sa{sv}})
+            connection.signal_subscribe(
+                BLUEZ_BUS_NAME,
+                Some(OBJECT_MANAGER_INTERFACE),
+                Some("InterfacesAdded"),
+                Some("/"),
+                None,
+                DBusSignalFlags::NONE,
+                |_, _, _, _, _, value| {
+                    let value = value
+                        .get::<(ObjectPath, HashMap<String, HashMap<String, Variant>>)>()
+                        .unwrap_or_else(|| {
+                            (
+                                ObjectPath::from_variant(&"/org/bluez".to_variant())
+                                    .expect("Mock object path could not be created"),
+                                HashMap::new(),
+                            )
+                        });
+                    if value.1.contains_key("org.bluez.Device1") {
+                        let device_data = value.1.get("org.bluez.Device1").unwrap();
+                        //Name
+                        let name = device_data
+                            .get("Name")
+                            .and_then(|variant| variant.get::<String>());
+                        if name.is_none() {
+                            return;
+                        };
+                        //RSSI
+                        let rssi = device_data
+                            .get("RSSI")
+                            .and_then(|variant| variant.get::<i16>())
+                            .unwrap_or_else(|| -200i16);
+
+                        device_data.get("Name").inspect(|name| {
+                            log::debug!("Device {name} found with RSSI '{rssi}'");
+                        });
+                    };
+                },
+            );
+
+            connection.signal_subscribe(
+                BLUEZ_BUS_NAME,
+                Some(OBJECT_MANAGER_INTERFACE),
+                Some("InterfacesRemoved"),
+                Some("/"),
+                None,
+                DBusSignalFlags::NONE,
+                |_, _, _, _, _, value| {
+                    //log::debug!("{:#?}", value);
+                },
+            );
+        }
+    }
+
+    pub fn start_scanning_for_devices(&self) {
+        if let Ok(connection) = &self.connection {
+            let _ = connection.call_sync(
+                BLUEZ_BUS_NAME,
+                self.adapters
+                    .get(self.adapter_index)
+                    .expect("No adapter found"),
+                ADAPTER_INTERFACE,
+                "StartDiscovery",
+                None,
+                None,
+                DBusCallFlags::NONE,
+                3000,
+                Cancellable::NONE,
+            );
+        }
+    }
+
+    pub fn stop_scanning_for_devices(&self) {
+        if let Ok(connection) = &self.connection {
+            let _ = connection.call_sync(
+                BLUEZ_BUS_NAME,
+                self.adapters
+                    .get(self.adapter_index)
+                    .expect("No adapter found"),
+                ADAPTER_INTERFACE,
+                "StopDiscovery",
+                None,
+                None,
+                DBusCallFlags::NONE,
+                3000,
+                Cancellable::NONE,
+            );
         }
     }
 }

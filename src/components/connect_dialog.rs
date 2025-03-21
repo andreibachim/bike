@@ -8,9 +8,7 @@ mod imp {
         glib::{self},
         subclass::widget::WidgetImpl,
     };
-    use log::debug;
-
-    use crate::bluetooth::Device;
+    use crate::{bluetooth::Device, BLUETOOTH};
 
     #[derive(Default, CompositeTemplate)]
     #[template(resource = "/io/github/andreibachim/bike/ui/connect_dialog.ui")]
@@ -37,21 +35,17 @@ mod imp {
     #[gtk::template_callbacks]
     impl ConnectDialogPrivate {
         #[template_callback]
-        fn dialog_closed() {
-            Self::stop_scanning();
-        }
-
-        #[template_callback]
         fn showing_find_page() {
-            debug!("Starting scan for new devices");
+            log::debug!("Starting scan for new devices");
+            BLUETOOTH.start_device_monitoring();
+            BLUETOOTH.start_scanning_for_devices();
         }
 
         #[template_callback]
         fn hiding_find_page() {
-            Self::stop_scanning();
+            log::debug!("Stopping scan for new devices");
+            BLUETOOTH.stop_scanning_for_devices();
         }
-
-        fn stop_scanning() {}
     }
 
     impl ObjectImpl for ConnectDialogPrivate {

@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="ConnectDialog" parent="AdwDialog">
-    <signal name="closed" handler="dialog_closed" />
     <property name="content-height">500</property>
     <property name="content-width">600</property>
     <child>
       <object class="AdwNavigationView">
         <child>
           <object class="AdwNavigationPage">
-            <signal name="showing" handler="showing_find_page" />
-            <signal name="hiding" handler="hiding_find_page" />
+            <signal name="realize" handler="showing_find_page" />
+            <signal name="unrealize" handler="hiding_find_page" />
             <property name="title">Find device</property>
             <property name="tag">find-device-page</property>
             <property name="child">
