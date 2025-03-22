@@ -1,21 +1,27 @@
 use gtk::glib::Object;
 
 mod imp {
+
+    use std::rc::Rc;
+
     use crate::{BLUETOOTH, bluetooth::Device};
     use adw::glib::subclass::InitializingObject;
     use adw::subclass::prelude::*;
     use gtk::{
         CompositeTemplate,
-        glib::{self},
+        gio::ListStore,
+        glib::{self, object::Cast},
         subclass::widget::WidgetImpl,
     };
 
-    #[derive(Default, CompositeTemplate)]
+    use super::ConnectDialog;
+
+    #[derive(CompositeTemplate)]
     #[template(resource = "/io/github/andreibachim/bike/ui/connect_dialog.ui")]
     pub struct ConnectDialogPrivate {
         #[template_child]
         device_list: TemplateChild<gtk::ListBox>,
-        available_devices: Vec<Device>,
+        available_devices: ListStore,
     }
 
     #[glib::object_subclass]
@@ -35,10 +41,10 @@ mod imp {
     #[gtk::template_callbacks]
     impl ConnectDialogPrivate {
         #[template_callback]
-        fn showing_find_page() {
+        fn showing_find_page(slf: ConnectDialog) {
             log::debug!("Starting scan for new devices");
-            BLUETOOTH.start_device_monitoring();
-            BLUETOOTH.start_scanning_for_devices();
+            let callback = Rc::new(move |device| slf.imp().add_new_device(device));
+            BLUETOOTH.start_scanning_for_devices(callback);
         }
 
         #[template_callback]
@@ -48,16 +54,34 @@ mod imp {
                 todo!("Implement logic for error cases here")
             }
         }
+
+        fn add_new_device(&self, device: Device) {
+            self.available_devices.append(&device);
+        }
+    }
+
+    impl Default for ConnectDialogPrivate {
+        fn default() -> Self {
+            Self {
+                available_devices: ListStore::new::<Device>(),
+                device_list: Default::default(),
+            }
+        }
     }
 
     impl ObjectImpl for ConnectDialogPrivate {
         fn constructed(&self) {
             self.parent_constructed();
-            let store = gtk::gio::ListStore::new::<Device>();
-            store.extend_from_slice(&self.available_devices);
-            self.device_list.bind_model(Some(&store), |_| {
-                gtk::Label::new(Some("Hello, world")).into()
-            });
+            self.device_list
+                .bind_model(Some(&self.available_devices), |device| {
+                    match device.downcast_ref::<Device>() {
+                        Some(device) => adw::ActionRow::builder()
+                            .title(device.name())
+                            .build()
+                            .into(),
+                        None => adw::Bin::new().into(),
+                    }
+                });
         }
     }
     impl WidgetImpl for ConnectDialogPrivate {}

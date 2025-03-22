@@ -1,6 +1,5 @@
 use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
+    collections::HashMap, rc::Rc, sync::{Arc, Mutex}
 };
 
 use gtk::{
@@ -14,8 +13,11 @@ use gtk::{
     },
 };
 
+use super::Device;
+
 const BLUEZ_BUS_NAME: Option<&str> = Some("org.bluez");
 const ADAPTER_INTERFACE: &str = "org.bluez.Adapter1";
+const DEVICE_INTERFACE: &str = "org.bluez.Device1";
 const PROPERTIES_INTERFACE: &str = "org.freedesktop.DBus.Properties";
 const OBJECT_MANAGER_INTERFACE: &str = "org.freedesktop.DBus.ObjectManager";
 
@@ -140,86 +142,134 @@ impl BluetoothService {
         }
     }
 
-    pub fn start_device_monitoring(&self) {
-        if let Ok(connection) = &self.connection {
-            //(oa{sa{sv}})
-            let interface_added_sub_id = connection.signal_subscribe(
-                BLUEZ_BUS_NAME,
-                Some(OBJECT_MANAGER_INTERFACE),
-                Some("InterfacesAdded"),
-                Some("/"),
-                None,
-                DBusSignalFlags::NONE,
-                |_, _, _, _, _, value| {
-                    let value = value
-                        .get::<(ObjectPath, HashMap<String, HashMap<String, Variant>>)>()
-                        .unwrap_or_else(|| {
-                            (
-                                ObjectPath::from_variant(&"/org/bluez".to_variant())
-                                    .expect("Mock object path could not be created"),
-                                HashMap::new(),
-                            )
-                        });
-                    if let Some(device_data) = value.1.get("org.bluez.Device1") {
-                        let name = device_data
-                            .get("Name")
-                            .and_then(|variant| variant.get::<String>());
-                        if name.is_none() {
-                            return;
-                        };
-                        //RSSI
-                        let rssi = device_data
-                            .get("RSSI")
-                            .and_then(|variant| variant.get::<i16>())
-                            .unwrap_or(-200i16);
-
-                        device_data.get("Name").inspect(|name| {
-                            log::debug!("Device {name} found with RSSI '{rssi}'");
-                        });
+    fn start_device_monitoring<F>(&self, connection: &DBusConnection, callback: Rc<F>) where F: Fn(Device) + 'static {
+        let interface_added_sub_id = connection.signal_subscribe(
+            BLUEZ_BUS_NAME,
+            Some(OBJECT_MANAGER_INTERFACE),
+            Some("InterfacesAdded"),
+            Some("/"),
+            None,
+            DBusSignalFlags::NONE,
+            move |_, _, _, _, _, value| {
+                let value = value
+                    .get::<(ObjectPath, HashMap<String, HashMap<String, Variant>>)>()
+                    .unwrap_or_else(|| {
+                        (
+                            ObjectPath::from_variant(&"/org/bluez".to_variant())
+                                .expect("Mock object path could not be created"),
+                            HashMap::new(),
+                        )
+                    });
+                if let Some(device_data) = value.1.get(DEVICE_INTERFACE) {
+                    if let Some(device) = BluetoothService::device_from_data(value.0, device_data) {
+                        callback(device);
                     }
-                },
-            );
+                }
+            },
+        );
 
-            match self.interface_added_sub_id.try_lock() {
-                Ok(mut value) => {
-                    value.replace(interface_added_sub_id);
-                }
-                Err(error) => {
-                    log::error!(
-                        "Could not acquire Interface Added lock. Unsubscribing from events. {error}",
-                    );
-                    connection.signal_unsubscribe(interface_added_sub_id);
-                }
-            };
+        match self.interface_added_sub_id.try_lock() {
+            Ok(mut value) => {
+                value.replace(interface_added_sub_id);
+            }
+            Err(error) => {
+                log::error!(
+                    "Could not acquire Interface Added lock. Unsubscribing from events. {error}",
+                );
+                connection.signal_unsubscribe(interface_added_sub_id);
+            }
+        };
 
-            let interface_removed_sub_id = connection.signal_subscribe(
-                BLUEZ_BUS_NAME,
-                Some(OBJECT_MANAGER_INTERFACE),
-                Some("InterfacesRemoved"),
-                Some("/"),
-                None,
-                DBusSignalFlags::NONE,
-                |_, _, _, _, _, _value| {
-                    //log::debug!("{:#?}", value);
-                },
-            );
+        let interface_removed_sub_id = connection.signal_subscribe(
+            BLUEZ_BUS_NAME,
+            Some(OBJECT_MANAGER_INTERFACE),
+            Some("InterfacesRemoved"),
+            Some("/"),
+            None,
+            DBusSignalFlags::NONE,
+            |_, _, _, _, _, _value| {
+                //log::debug!("{:#?}", value);
+            },
+        );
 
-            match self.interface_removed_sub_id.try_lock() {
-                Ok(mut value) => {
-                    value.replace(interface_removed_sub_id);
-                }
-                Err(error) => {
-                    log::error!(
-                        "Could not acquire Interface Removed lock. Unsubscribing from events. {error}"
-                    );
-                    connection.signal_unsubscribe(interface_removed_sub_id);
-                }
+        match self.interface_removed_sub_id.try_lock() {
+            Ok(mut value) => {
+                value.replace(interface_removed_sub_id);
+            }
+            Err(error) => {
+                log::error!(
+                    "Could not acquire Interface Removed lock. Unsubscribing from events. {error}"
+                );
+                connection.signal_unsubscribe(interface_removed_sub_id);
             }
         }
     }
 
-    pub fn start_scanning_for_devices(&self) {
+    fn find_known_devices<F>(&self, connection: &DBusConnection, callback: Rc<F>) where F: Fn(Device) {
+        if let Ok(devices) = connection.call_sync(
+            BLUEZ_BUS_NAME,
+            "/",
+            "org.freedesktop.DBus.ObjectManager",
+            "GetManagedObjects",
+            None,
+            Some(VariantTy::ANY),
+            DBusCallFlags::NONE,
+            3000,
+            Cancellable::NONE,
+        ) {
+            let (devices,) = devices
+                .get::<(HashMap<ObjectPath, HashMap<String, HashMap<String, Variant>>>,)>()
+                .unwrap_or((HashMap::new(),));
+            devices
+                .into_iter()
+                .filter(|(_, v)| v.contains_key(DEVICE_INTERFACE))
+                .for_each(|(object_path, interfaces)| {
+                    if let Some(device_data) = interfaces.get(DEVICE_INTERFACE) {
+                        if let Some(device) =
+                            BluetoothService::device_from_data(object_path, device_data)
+                        {
+                            log::debug!("{device}");
+                            callback(device);
+                        }
+                    }
+                });
+        }
+    }
+
+    fn device_from_data(
+        object_path: ObjectPath,
+        device_data: &HashMap<String, Variant>,
+    ) -> Option<Device> {
+        device_data
+            .get("Name")
+            .and_then(|variant| variant.get::<String>())
+            .map(|name| {
+                let rssi = device_data
+                    .get("RSSI")
+                    .and_then(|variant| variant.get::<i16>())
+                    .unwrap_or(-200i16);
+                let paired = device_data
+                    .get("Paired")
+                    .and_then(|variant| variant.get::<bool>())
+                    .unwrap_or(false);
+                let connected = device_data
+                    .get("Connected")
+                    .and_then(|variant| variant.get::<bool>())
+                    .unwrap_or(false);
+                Device::new(
+                    name,
+                    paired,
+                    connected,
+                    rssi.into(),
+                    object_path.to_string(),
+                )
+            })
+    }
+
+    pub fn start_scanning_for_devices<F>(&self, callback: Rc<F>) where F: Fn(Device) + 'static {
         if let Ok(connection) = &self.connection {
+            self.start_device_monitoring(connection, callback.clone());
+            self.find_known_devices(connection, callback);
             let _ = connection.call_sync(
                 BLUEZ_BUS_NAME,
                 self.adapters

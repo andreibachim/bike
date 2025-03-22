@@ -145,14 +145,6 @@ impl BluetoothButton {
     pub fn new() -> Self {
         Object::builder().build()
     }
-
-    //pub fn set_state(&self, state: imp::State) {
-    //    self.set_property("state", &state);
-    //}
-    //
-    //pub fn get_state(&self) -> imp::State {
-    //    self.property("state")
-    //}
 }
 
 impl Default for BluetoothButton {
