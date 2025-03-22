@@ -1,7 +1,13 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use gtk::{
-    gio::{BusType, Cancellable, DBusCallFlags, DBusConnection, DBusError, DBusSignalFlags},
+    gio::{
+        BusType, Cancellable, DBusCallFlags, DBusConnection, DBusError, DBusSignalFlags,
+        SignalSubscriptionId,
+    },
     glib::{
         Variant, VariantTy,
         variant::{FromVariant, ObjectPath, ToVariant},
@@ -17,6 +23,8 @@ pub struct BluetoothService {
     connection: Result<DBusConnection, gtk::glib::Error>,
     adapter_index: usize,
     adapters: Vec<ObjectPath>,
+    interface_added_sub_id: Arc<Mutex<Option<SignalSubscriptionId>>>,
+    interface_removed_sub_id: Arc<Mutex<Option<SignalSubscriptionId>>>,
 }
 
 impl BluetoothService {
@@ -26,6 +34,8 @@ impl BluetoothService {
             connection,
             adapter_index: 0,
             adapters: vec![],
+            interface_added_sub_id: Arc::new(Mutex::new(None)),
+            interface_removed_sub_id: Arc::new(Mutex::new(None)),
         };
         slf.adapters.append(&mut slf.get_adapters());
         slf
@@ -133,7 +143,7 @@ impl BluetoothService {
     pub fn start_device_monitoring(&self) {
         if let Ok(connection) = &self.connection {
             //(oa{sa{sv}})
-            connection.signal_subscribe(
+            let interface_added_sub_id = connection.signal_subscribe(
                 BLUEZ_BUS_NAME,
                 Some(OBJECT_MANAGER_INTERFACE),
                 Some("InterfacesAdded"),
@@ -150,9 +160,7 @@ impl BluetoothService {
                                 HashMap::new(),
                             )
                         });
-                    if value.1.contains_key("org.bluez.Device1") {
-                        let device_data = value.1.get("org.bluez.Device1").unwrap();
-                        //Name
+                    if let Some(device_data) = value.1.get("org.bluez.Device1") {
                         let name = device_data
                             .get("Name")
                             .and_then(|variant| variant.get::<String>());
@@ -163,26 +171,50 @@ impl BluetoothService {
                         let rssi = device_data
                             .get("RSSI")
                             .and_then(|variant| variant.get::<i16>())
-                            .unwrap_or_else(|| -200i16);
+                            .unwrap_or(-200i16);
 
                         device_data.get("Name").inspect(|name| {
                             log::debug!("Device {name} found with RSSI '{rssi}'");
                         });
-                    };
+                    }
                 },
             );
 
-            connection.signal_subscribe(
+            match self.interface_added_sub_id.try_lock() {
+                Ok(mut value) => {
+                    value.replace(interface_added_sub_id);
+                }
+                Err(error) => {
+                    log::error!(
+                        "Could not acquire Interface Added lock. Unsubscribing from events. {error}",
+                    );
+                    connection.signal_unsubscribe(interface_added_sub_id);
+                }
+            };
+
+            let interface_removed_sub_id = connection.signal_subscribe(
                 BLUEZ_BUS_NAME,
                 Some(OBJECT_MANAGER_INTERFACE),
                 Some("InterfacesRemoved"),
                 Some("/"),
                 None,
                 DBusSignalFlags::NONE,
-                |_, _, _, _, _, value| {
+                |_, _, _, _, _, _value| {
                     //log::debug!("{:#?}", value);
                 },
             );
+
+            match self.interface_removed_sub_id.try_lock() {
+                Ok(mut value) => {
+                    value.replace(interface_removed_sub_id);
+                }
+                Err(error) => {
+                    log::error!(
+                        "Could not acquire Interface Removed lock. Unsubscribing from events. {error}"
+                    );
+                    connection.signal_unsubscribe(interface_removed_sub_id);
+                }
+            }
         }
     }
 
@@ -204,22 +236,49 @@ impl BluetoothService {
         }
     }
 
-    pub fn stop_scanning_for_devices(&self) {
+    pub fn stop_scanning_for_devices(&self) -> Result<(), ()> {
         if let Ok(connection) = &self.connection {
-            let _ = connection.call_sync(
-                BLUEZ_BUS_NAME,
-                self.adapters
-                    .get(self.adapter_index)
-                    .expect("No adapter found"),
-                ADAPTER_INTERFACE,
-                "StopDiscovery",
-                None,
-                None,
-                DBusCallFlags::NONE,
-                3000,
-                Cancellable::NONE,
-            );
+            self.unregister_interface_subscriptions()?;
+            connection
+                .call_sync(
+                    BLUEZ_BUS_NAME,
+                    self.adapters
+                        .get(self.adapter_index)
+                        .expect("No adapter found"),
+                    ADAPTER_INTERFACE,
+                    "StopDiscovery",
+                    None,
+                    None,
+                    DBusCallFlags::NONE,
+                    3000,
+                    Cancellable::NONE,
+                )
+                .map_err(|_| ())?;
         }
+        Ok(())
+    }
+
+    fn unregister_interface_subscriptions(&self) -> Result<(), ()> {
+        if let Ok(connection) = &self.connection {
+            if let Some(id) = self
+                .interface_added_sub_id
+                .try_lock()
+                .map_err(|_| log::error!("Could not acquire lock for interface added sub is"))?
+                .take()
+            {
+                connection.signal_unsubscribe(id);
+            }
+
+            if let Some(id) = self
+                .interface_removed_sub_id
+                .try_lock()
+                .map_err(|_| log::error!("Could not acquire lock for interface removed sub id"))?
+                .take()
+            {
+                connection.signal_unsubscribe(id);
+            }
+        }
+        Ok(())
     }
 }
 

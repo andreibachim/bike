@@ -1,6 +1,7 @@
 use gtk::glib::Object;
 
 mod imp {
+    use crate::{BLUETOOTH, bluetooth::Device};
     use adw::glib::subclass::InitializingObject;
     use adw::subclass::prelude::*;
     use gtk::{
@@ -8,7 +9,6 @@ mod imp {
         glib::{self},
         subclass::widget::WidgetImpl,
     };
-    use crate::{bluetooth::Device, BLUETOOTH};
 
     #[derive(Default, CompositeTemplate)]
     #[template(resource = "/io/github/andreibachim/bike/ui/connect_dialog.ui")]
@@ -44,7 +44,9 @@ mod imp {
         #[template_callback]
         fn hiding_find_page() {
             log::debug!("Stopping scan for new devices");
-            BLUETOOTH.stop_scanning_for_devices();
+            if BLUETOOTH.stop_scanning_for_devices().is_err() {
+                todo!("Implement logic for error cases here")
+            }
         }
     }
 
