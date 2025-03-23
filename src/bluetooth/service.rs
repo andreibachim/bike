@@ -1,5 +1,7 @@
 use std::{
-    collections::HashMap, rc::Rc, sync::{Arc, Mutex}
+    collections::HashMap,
+    rc::Rc,
+    sync::{Arc, Mutex},
 };
 
 use gtk::{
@@ -142,7 +144,15 @@ impl BluetoothService {
         }
     }
 
-    fn start_device_monitoring<F>(&self, connection: &DBusConnection, callback: Rc<F>) where F: Fn(Device) + 'static {
+    fn start_device_monitoring<F, G>(
+        &self,
+        connection: &DBusConnection,
+        add_device_callback: Rc<F>,
+        remove_device_callback: Rc<G>,
+    ) where
+        F: Fn(Device) + 'static,
+        G: Fn(ObjectPath) + 'static,
+    {
         let interface_added_sub_id = connection.signal_subscribe(
             BLUEZ_BUS_NAME,
             Some(OBJECT_MANAGER_INTERFACE),
@@ -162,7 +172,7 @@ impl BluetoothService {
                     });
                 if let Some(device_data) = value.1.get(DEVICE_INTERFACE) {
                     if let Some(device) = BluetoothService::device_from_data(value.0, device_data) {
-                        callback(device);
+                        add_device_callback(device);
                     }
                 }
             },
@@ -187,8 +197,18 @@ impl BluetoothService {
             Some("/"),
             None,
             DBusSignalFlags::NONE,
-            |_, _, _, _, _, _value| {
-                //log::debug!("{:#?}", value);
+            move |_, _, _, _, _, value| {
+                let (object_path, lost_interfaces) =
+                    value.get::<(ObjectPath, Vec<String>)>().unwrap_or_else(|| {
+                        (
+                            ObjectPath::from_variant(&"/org/bluez".to_variant())
+                                .expect("Mock object path could not created"),
+                            vec![],
+                        )
+                    });
+                if lost_interfaces.contains(&DEVICE_INTERFACE.to_string()) {
+                    remove_device_callback(object_path);
+                }
             },
         );
 
@@ -205,7 +225,10 @@ impl BluetoothService {
         }
     }
 
-    fn find_known_devices<F>(&self, connection: &DBusConnection, callback: Rc<F>) where F: Fn(Device) {
+    fn find_known_devices<F>(&self, connection: &DBusConnection, callback: Rc<F>)
+    where
+        F: Fn(Device),
+    {
         if let Ok(devices) = connection.call_sync(
             BLUEZ_BUS_NAME,
             "/",
@@ -265,10 +288,21 @@ impl BluetoothService {
             })
     }
 
-    pub fn start_scanning_for_devices<F>(&self, callback: Rc<F>) where F: Fn(Device) + 'static {
+    pub fn start_scanning_for_devices<F, G>(
+        &self,
+        add_device_callback: Rc<F>,
+        remove_device_callback: Rc<G>,
+    ) where
+        F: Fn(Device) + 'static,
+        G: Fn(ObjectPath) + 'static,
+    {
         if let Ok(connection) = &self.connection {
-            self.start_device_monitoring(connection, callback.clone());
-            self.find_known_devices(connection, callback);
+            self.start_device_monitoring(
+                connection,
+                add_device_callback.clone(),
+                remove_device_callback,
+            );
+            self.find_known_devices(connection, add_device_callback);
             let _ = connection.call_sync(
                 BLUEZ_BUS_NAME,
                 self.adapters

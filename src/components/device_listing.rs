@@ -61,6 +61,7 @@ glib::wrapper! {
 
 impl DeviceListing {
     pub fn new(device: &Device) -> Self {
+        log::debug!("Device found: {device}");
         let slf: Self = Object::builder().build();
 
         //Bind title
@@ -95,14 +96,14 @@ impl DeviceListing {
             .sync_create()
             .transform_to(|_, rssi: i32| -> Option<&str> {
                 Some(match rssi {
-                    value if value >= -119 && value <= -90 => {
+                    value if (-119..=-90).contains(&value) => {
                         "network-cellular-signal-weak-symbolic"
                     }
-                    value if value >= -89 && value <= -60 => "network-cellular-signal-ok-symbolic",
-                    value if value >= -59 && value <= -30 => {
+                    value if (-89..=-60).contains(&value) => "network-cellular-signal-ok-symbolic",
+                    value if (-59..=-30).contains(&value) => {
                         "network-cellular-signal-good-symbolic"
                     }
-                    value if value >= -29 && value <= 0 => {
+                    value if (-29..=0).contains(&value) => {
                         "network-cellular-signal-excellent-symbolic"
                     }
                     _ => "network-cellular-offline-symbolic",

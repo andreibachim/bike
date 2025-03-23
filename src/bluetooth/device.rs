@@ -63,7 +63,7 @@ impl Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} {} {} {} {}",
+            "Path: {}, Name: {}, Paired: {}, Connected: {}, RSSI: {}",
             self.object_path(),
             self.name(),
             self.paired(),

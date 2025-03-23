@@ -8,6 +8,8 @@ mod imp {
     use crate::{BLUETOOTH, bluetooth::Device};
     use adw::glib::subclass::InitializingObject;
     use adw::subclass::prelude::*;
+    use gtk::glib::clone;
+    use gtk::glib::variant::ObjectPath;
     use gtk::{
         CompositeTemplate,
         gio::ListStore,
@@ -44,8 +46,17 @@ mod imp {
         #[template_callback]
         fn showing_find_page(slf: ConnectDialog) {
             log::debug!("Starting scan for new devices");
-            let callback = Rc::new(move |device| slf.imp().add_new_device(device));
-            BLUETOOTH.start_scanning_for_devices(callback);
+            let add_device_callback = Rc::new(clone!(
+                #[weak(rename_to = imp)]
+                slf.imp(),
+                move |device| imp.add_new_device(device)
+            ));
+            let remove_device_callback = Rc::new(clone!(
+                #[weak(rename_to = imp)]
+                slf.imp(),
+                move |object_path| imp.remove_device(object_path)
+            ));
+            BLUETOOTH.start_scanning_for_devices(add_device_callback, remove_device_callback);
         }
 
         #[template_callback]
@@ -58,6 +69,19 @@ mod imp {
 
         fn add_new_device(&self, device: Device) {
             self.available_devices.append(&device);
+        }
+
+        fn remove_device(&self, object_path: ObjectPath) {
+            log::debug!("Should remove device: {:#?}", object_path);
+            self.available_devices.retain(|device| {
+                if let Some(device) = device.downcast_ref::<Device>() {
+                    !device
+                        .object_path()
+                        .eq_ignore_ascii_case(object_path.as_str())
+                } else {
+                    true
+                }
+            });
         }
     }
 
