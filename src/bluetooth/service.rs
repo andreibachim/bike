@@ -228,7 +228,6 @@ impl BluetoothService {
                         if let Some(device) =
                             BluetoothService::device_from_data(object_path, device_data)
                         {
-                            log::debug!("{device}");
                             callback(device);
                         }
                     }

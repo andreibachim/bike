@@ -4,5 +4,6 @@
       <file compressed="true" preprocess="xml-stripblanks">ui/bluetooth_button.ui</file>
       <file compressed="true" preprocess="xml-stripblanks">ui/window.ui</file>
       <file compressed="true" preprocess="xml-stripblanks">ui/connect_dialog.ui</file>
+      <file compressed="true" preprocess="xml-stripblanks">ui/device_listing.ui</file>
   </gresource>
 </gresources>

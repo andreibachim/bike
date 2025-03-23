@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="DeviceListing" parent="AdwActionRow">
+    <child type="suffix">
+      <object class="GtkImage" id="signal_icon">
+        <property name="icon-name">network-cellular-offline-symbolic</property>
+      </object>
+    </child>
+  </template>
+</interface>

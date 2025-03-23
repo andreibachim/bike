@@ -4,6 +4,7 @@ mod imp {
 
     use std::rc::Rc;
 
+    use crate::components::device_listing::DeviceListing;
     use crate::{BLUETOOTH, bluetooth::Device};
     use adw::glib::subclass::InitializingObject;
     use adw::subclass::prelude::*;
@@ -75,10 +76,10 @@ mod imp {
             self.device_list
                 .bind_model(Some(&self.available_devices), |device| {
                     match device.downcast_ref::<Device>() {
-                        Some(device) => adw::ActionRow::builder()
-                            .title(device.name())
-                            .build()
-                            .into(),
+                        Some(device) => {
+                            let device_listing = DeviceListing::new(device);
+                            device_listing.into()
+                        }
                         None => adw::Bin::new().into(),
                     }
                 });

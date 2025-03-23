@@ -34,9 +34,8 @@ mod imp {
     impl ObjectImpl for DevicePrivate {}
 }
 
-use std::fmt::Display;
-
 use gtk::glib::{self, Object};
+use std::fmt::Display;
 
 glib::wrapper! {
     pub struct Device(ObjectSubclass<imp::DevicePrivate>);
@@ -70,6 +69,18 @@ impl Display for Device {
             self.paired(),
             self.connected(),
             self.rssi()
+        )
+    }
+}
+
+impl Default for Device {
+    fn default() -> Self {
+        Self::new(
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
         )
     }
 }
