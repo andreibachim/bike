@@ -3,6 +3,7 @@ mod imp {
 
     use adw::prelude::ObjectExt;
     use adw::subclass::prelude::{DerivedObjectProperties, ObjectImpl, ObjectSubclass};
+    use gtk::gio::SignalSubscriptionId;
     use gtk::glib::{self, Properties};
 
     #[derive(Debug, Default, Properties)]
@@ -22,6 +23,8 @@ mod imp {
 
         #[property(name = "object-path", get, set)]
         object_path: RefCell<String>,
+
+        pub rssi_sub_id: RefCell<Option<SignalSubscriptionId>>,
     }
 
     #[glib::object_subclass]
@@ -34,8 +37,11 @@ mod imp {
     impl ObjectImpl for DevicePrivate {}
 }
 
-use gtk::glib::{self, Object};
+use adw::subclass::prelude::ObjectSubclassIsExt;
+use gtk::glib::{self, Object, clone};
 use std::fmt::Display;
+
+use crate::BLUETOOTH;
 
 glib::wrapper! {
     pub struct Device(ObjectSubclass<imp::DevicePrivate>);
@@ -56,6 +62,25 @@ impl Device {
             .property("rssi", rssi)
             .property("object_path", object_path)
             .build()
+    }
+
+    pub fn register_property_listener(&self) {
+        *self.imp().rssi_sub_id.borrow_mut() = BLUETOOTH.start_rssi_monitoring(
+            self.object_path(),
+            clone!(
+                #[weak(rename_to=slf)]
+                self.clone(),
+                move |rssi| {
+                    slf.set_rssi(rssi as i32);
+                }
+            ),
+        );
+    }
+
+    pub fn unregister_property_listener(&self) {
+        if let Some(sub_id) = self.imp().rssi_sub_id.borrow_mut().take() {
+            BLUETOOTH.stop_rssi_monitoring(sub_id);
+        }
     }
 }
 

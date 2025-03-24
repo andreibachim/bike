@@ -68,6 +68,7 @@ mod imp {
         }
 
         fn add_new_device(&self, device: Device) {
+            device.register_property_listener();
             self.available_devices.append(&device);
         }
 
@@ -75,9 +76,15 @@ mod imp {
             log::debug!("Should remove device: {:#?}", object_path);
             self.available_devices.retain(|device| {
                 if let Some(device) = device.downcast_ref::<Device>() {
-                    !device
+                    if device
                         .object_path()
                         .eq_ignore_ascii_case(object_path.as_str())
+                    {
+                        device.unregister_property_listener();
+                        false
+                    } else {
+                        true
+                    }
                 } else {
                     true
                 }

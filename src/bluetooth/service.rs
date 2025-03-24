@@ -172,6 +172,7 @@ impl BluetoothService {
                     });
                 if let Some(device_data) = value.1.get(DEVICE_INTERFACE) {
                     if let Some(device) = BluetoothService::device_from_data(value.0, device_data) {
+                        //self.start_rssi_monitoring(device.object_path());
                         add_device_callback(device);
                     }
                 }
@@ -222,6 +223,44 @@ impl BluetoothService {
                 );
                 connection.signal_unsubscribe(interface_removed_sub_id);
             }
+        }
+    }
+
+    pub fn start_rssi_monitoring<F>(
+        &self,
+        device: String,
+        update_rssi_callback: F,
+    ) -> Option<SignalSubscriptionId>
+    where
+        F: Fn(i16) + 'static,
+    {
+        if let Ok(connection) = &self.connection {
+            Some(connection.signal_subscribe(
+                BLUEZ_BUS_NAME,
+                Some(PROPERTIES_INTERFACE),
+                Some("PropertiesChanged"),
+                Some(&device),
+                Some(DEVICE_INTERFACE),
+                DBusSignalFlags::NONE,
+                move |_, _, _, _, _, value| {
+                    let (_, properties, _) = value
+                        .get::<(String, HashMap<String, Variant>, Vec<String>)>()
+                        .unwrap();
+                    properties.get("RSSI").inspect(|rssi_variant| {
+                        rssi_variant.get::<i16>().inspect(|rssi| {
+                            update_rssi_callback(*rssi);
+                        });
+                    });
+                },
+            ))
+        } else {
+            None
+        }
+    }
+
+    pub fn stop_rssi_monitoring(&self, sub_id: SignalSubscriptionId) {
+        if let Ok(connection) = &self.connection {
+            connection.signal_unsubscribe(sub_id);
         }
     }
 
