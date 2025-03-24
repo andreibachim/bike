@@ -97,15 +97,3 @@ impl Display for Device {
         )
     }
 }
-
-impl Default for Device {
-    fn default() -> Self {
-        Self::new(
-            Default::default(),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        )
-    }
-}

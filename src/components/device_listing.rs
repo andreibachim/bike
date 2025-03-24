@@ -91,25 +91,36 @@ impl DeviceListing {
         .bind(&slf, "subtitle", Some(&slf));
 
         //Bind icon
-        device
-            .bind_property("rssi", &slf.imp().signal_icon.get(), "icon-name")
-            .sync_create()
-            .transform_to(|_, rssi: i32| -> Option<&str> {
-                Some(match rssi {
-                    value if (-119..=-90).contains(&value) => {
-                        "network-cellular-signal-weak-symbolic"
+        ClosureExpression::new::<String>(
+            [
+                &device.property_expression("connected"),
+                &device.property_expression("rssi"),
+            ],
+            closure!(|_: gtk::Image,
+                      connected: bool,
+                      rssi: i32| {
+                if connected {
+                    "go-next-symbolic"
+                } else {
+                    match rssi {
+                        value if (-119..=-90).contains(&value) => {
+                            "network-cellular-signal-weak-symbolic"
+                        }
+                        value if (-89..=-60).contains(&value) => {
+                            "network-cellular-signal-ok-symbolic"
+                        }
+                        value if (-59..=-30).contains(&value) => {
+                            "network-cellular-signal-good-symbolic"
+                        }
+                        value if (-29..=0).contains(&value) => {
+                            "network-cellular-signal-excellent-symbolic"
+                        }
+                        _ => "network-cellular-offline-symbolic",
                     }
-                    value if (-89..=-60).contains(&value) => "network-cellular-signal-ok-symbolic",
-                    value if (-59..=-30).contains(&value) => {
-                        "network-cellular-signal-good-symbolic"
-                    }
-                    value if (-29..=0).contains(&value) => {
-                        "network-cellular-signal-excellent-symbolic"
-                    }
-                    _ => "network-cellular-offline-symbolic",
-                })
-            })
-            .build();
+                }
+            }),
+        )
+        .bind(&slf.imp().signal_icon.get(), "icon-name", Some(&slf.imp().signal_icon.get()));
 
         slf
     }
