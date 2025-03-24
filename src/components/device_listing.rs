@@ -13,6 +13,8 @@ mod imp {
         subclass::{prelude::ListBoxRowImpl, widget::WidgetImpl},
     };
 
+    use super::DeviceListing;
+
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/io/github/andreibachim/bike/ui/device_listing.ui")]
     pub struct DeviceListingPrivate {
@@ -35,7 +37,12 @@ mod imp {
     }
 
     #[gtk::template_callbacks]
-    impl DeviceListingPrivate {}
+    impl DeviceListingPrivate {
+        #[template_callback]
+        fn connect(slf: DeviceListing) {
+            log::debug!("{:#?}", slf);
+        }
+    }
 
     impl ObjectImpl for DeviceListingPrivate {}
     impl WidgetImpl for DeviceListingPrivate {}
@@ -96,9 +103,7 @@ impl DeviceListing {
                 &device.property_expression("connected"),
                 &device.property_expression("rssi"),
             ],
-            closure!(|_: gtk::Image,
-                      connected: bool,
-                      rssi: i32| {
+            closure!(|_: gtk::Image, connected: bool, rssi: i32| {
                 if connected {
                     "go-next-symbolic"
                 } else {
@@ -120,7 +125,11 @@ impl DeviceListing {
                 }
             }),
         )
-        .bind(&slf.imp().signal_icon.get(), "icon-name", Some(&slf.imp().signal_icon.get()));
+        .bind(
+            &slf.imp().signal_icon.get(),
+            "icon-name",
+            Some(&slf.imp().signal_icon.get()),
+        );
 
         slf
     }

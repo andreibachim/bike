@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="DeviceListing" parent="AdwActionRow">
+    <signal name="activated" handler="connect"/>
+    <property name="activatable-widget">
+      <object class="AdwBin"></object>
+    </property>
     <child type="suffix">
       <object class="GtkImage" id="signal_icon">
         <property name="icon-name">network-cellular-offline-symbolic</property>
