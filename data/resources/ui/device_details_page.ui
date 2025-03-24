@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="DeviceDetailsPage" parent="AdwNavigationPage">
+    <signal name="showing" handler="showing" />
+    <signal name="hiding" handler="hiding" />
+    <property name="title">Device Details</property>
+    <property name="tag">device-details-page</property>
+    <property name="child">
+      <object class="GtkLabel">
+        <property name="label">Hello, world!</property>
+      </object>
+    </property>
+  </template>
+</interface>

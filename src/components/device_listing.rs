@@ -3,7 +3,10 @@ mod imp {
     use adw::subclass::prelude::{
         ActionRowImpl, ObjectImpl, ObjectSubclass, PreferencesRowImpl, WidgetClassExt,
     };
+    use gtk::glib::object::CastNone;
     use gtk::glib::subclass::InitializingObject;
+    use gtk::glib::types::StaticType;
+    use gtk::prelude::WidgetExt;
     use gtk::subclass::widget::{
         CompositeTemplateCallbacksClass, CompositeTemplateClass, CompositeTemplateInitializingExt,
     };
@@ -12,6 +15,8 @@ mod imp {
         glib::{self},
         subclass::{prelude::ListBoxRowImpl, widget::WidgetImpl},
     };
+
+    use crate::components::connect_dialog::ConnectDialog;
 
     use super::DeviceListing;
 
@@ -40,7 +45,9 @@ mod imp {
     impl DeviceListingPrivate {
         #[template_callback]
         fn connect(slf: DeviceListing) {
-            log::debug!("{:#?}", slf);
+            slf.ancestor(ConnectDialog::static_type())
+                .and_downcast()
+                .inspect(|connect_dialog: &ConnectDialog| connect_dialog.load_details());
         }
     }
 

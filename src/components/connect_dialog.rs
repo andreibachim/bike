@@ -1,3 +1,4 @@
+use adw::subclass::prelude::ObjectSubclassIsExt;
 use gtk::glib::Object;
 
 mod imp {
@@ -22,6 +23,8 @@ mod imp {
     #[derive(CompositeTemplate)]
     #[template(resource = "/io/github/andreibachim/bike/ui/connect_dialog.ui")]
     pub struct ConnectDialogPrivate {
+        #[template_child]
+        pub navigation_view: TemplateChild<adw::NavigationView>,
         #[template_child]
         device_list: TemplateChild<gtk::ListBox>,
         available_devices: ListStore,
@@ -97,6 +100,7 @@ mod imp {
             Self {
                 available_devices: ListStore::new::<Device>(),
                 device_list: Default::default(),
+                navigation_view: Default::default(),
             }
         }
     }
@@ -122,12 +126,25 @@ mod imp {
 
 gtk::glib::wrapper! {
     pub struct ConnectDialog(ObjectSubclass<imp::ConnectDialogPrivate>)
-        @extends adw::Dialog, gtk::Widget;
+        @extends adw::Dialog, gtk::Widget,
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::ShortcutManager;
 }
 
 impl ConnectDialog {
     pub fn new() -> Self {
         Object::builder().build()
+    }
+
+    pub fn load_details(&self) {
+        self.imp()
+            .navigation_view
+            .push_by_tag("device-details-page");
+    }
+
+    pub fn skip_to_device_details_page(&self) {
+        self.imp().navigation_view.set_animate_transitions(false);
+        self.load_details();
+        self.imp().navigation_view.set_animate_transitions(true);
     }
 }
 

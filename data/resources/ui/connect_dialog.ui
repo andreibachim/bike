@@ -4,7 +4,7 @@
     <property name="content-height">500</property>
     <property name="content-width">600</property>
     <child>
-      <object class="AdwNavigationView">
+      <object class="AdwNavigationView" id="navigation_view">
         <child>
           <object class="AdwNavigationPage">
             <signal name="realize" handler="showing_find_page" swapped="true" />
@@ -47,6 +47,21 @@
               </object>
             </property>
           </object>
+        </child>
+        <child>
+          <object class="DeviceDetailsPage" />
+          <!--<object
+          class="AdwNavigationPage">-->
+          <!--  <signal name="showing" handler="showing_device_details" />-->
+          <!--  <signal name="hiding" handler="hiding_device_details" />-->
+          <!--  <property name="title">Device Details</property>-->
+          <!--  <property name="tag">device-details-page</property>-->
+          <!--  <property name="child">-->
+          <!--    <object class="GtkLabel">-->
+          <!--      <property name="label">Hello, world!</property>-->
+          <!--    </object>-->
+          <!--  </property>-->
+          <!--</object>-->
         </child>
       </object>
     </child>

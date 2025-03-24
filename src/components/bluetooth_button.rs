@@ -1,4 +1,5 @@
 use gtk::glib::Object;
+use imp::State;
 
 mod imp {
     use std::cell::Cell;
@@ -52,7 +53,12 @@ mod imp {
                     connect_dialog
                         .present(slf.ancestor(adw::ApplicationWindow::static_type()).as_ref());
                 }
-                State::Connected => {}
+                State::Connected => {
+                    let connect_dialog = ConnectDialog::new();
+                    connect_dialog.skip_to_device_details_page();
+                    connect_dialog
+                        .present(slf.ancestor(adw::ApplicationWindow::static_type()).as_ref());
+                }
             }
         }
     }
@@ -144,6 +150,10 @@ gtk::glib::wrapper! {
 impl BluetoothButton {
     pub fn new() -> Self {
         Object::builder().build()
+    }
+
+    pub fn set_connected(&self) {
+        self.set_state(State::Connected);
     }
 }
 

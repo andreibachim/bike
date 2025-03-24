@@ -10,7 +10,7 @@
           <object class="AdwHeaderBar">
             <property name="show-title">false</property>
             <child type="end">
-              <object class="BluetoothButton" />
+              <object class="BluetoothButton" id="bluetooth_button" />
             </child>
           </object>
         </child>

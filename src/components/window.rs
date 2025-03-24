@@ -1,7 +1,8 @@
+use adw::subclass::prelude::ObjectSubclassIsExt;
 use gtk::glib::Object;
 
 mod imp {
-    use crate::BLUETOOTH;
+    use crate::{BLUETOOTH, components::BluetoothButton};
     use adw::subclass::prelude::*;
     use gtk::{
         CompositeTemplate,
@@ -14,6 +15,8 @@ mod imp {
     pub struct WindowPrivate {
         #[template_child]
         missing_bluetooth_banner: TemplateChild<adw::Banner>,
+        #[template_child]
+        pub bluetooth_button: TemplateChild<BluetoothButton>,
     }
 
     #[glib::object_subclass]
@@ -52,5 +55,9 @@ gtk::glib::wrapper! {
 impl Window {
     pub fn new(app: &adw::Application) -> Self {
         Object::builder().property("application", app).build()
+    }
+
+    pub fn set_connected(&self) {
+        self.imp().bluetooth_button.set_connected();
     }
 }

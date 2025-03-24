@@ -1,5 +1,5 @@
 use bluetooth::BluetoothService;
-use components::{App, BluetoothButton, Window};
+use components::{App, BluetoothButton, DeviceDetailsPage, Window};
 use gtk::{gio::prelude::ApplicationExtManual, glib::types::StaticType};
 use once_cell::sync::Lazy;
 use std::io::Write;
@@ -40,6 +40,7 @@ fn setup_resources() {
 }
 
 fn register_custom_types() {
+    DeviceDetailsPage::static_type();
     BluetoothButton::static_type();
     Window::static_type();
     App::static_type();
